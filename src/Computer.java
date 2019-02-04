@@ -32,7 +32,7 @@ class Clock{//时钟类
 
     public int gettime(){
         return time;
-    }
+    }//获取当前时间
 }
 
 class CPU{//CPU类
@@ -52,7 +52,14 @@ class MMU{//存储管理部件类
 }
 
 class Memory{//内存类
+    private boolean memory[][]=new boolean[64][512];
+    //共32KB,每个物理块大小512B,共64个物理块,true表示该存储单元被占用，false表示该存储单元空闲
 
+    Memory(){
+        for(int i=0;i<64;i++)
+            for(int j=0;j<512;j++)
+                memory[i][j]=false;
+    }
 }
 
 class Disk{//硬盘类

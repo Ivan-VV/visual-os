@@ -1,11 +1,11 @@
 public class Os {
     private Computer computer;//操作系统管理的裸机
 
-    public void memory_control(){//内存调度
+    public void memory_manage(){//内存管理
 
     }
 
-    public void cpu_control(){//CPU调度
+    public void cpu_manage(){//CPU管理
 
     }
 }
