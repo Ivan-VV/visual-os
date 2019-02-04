@@ -10,6 +10,10 @@ public class Computer {//裸机类
     Computer(){//构造函数
         page_table=0;
     }
+
+    public void computerstart()throws InterruptedException{//开机
+        clock.clockstart();
+    }
 }
 
 class Clock{//时钟类
