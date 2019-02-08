@@ -12,8 +12,12 @@ public class Computer {//裸机类
     }
 
     public void computerstart()throws InterruptedException{//开机
-        clock.clockstart();
+        clock.clockstart();//启动时钟
+        Os os=new Os(this);//初始化操作系统
+        os.osstart();//开始执行操作系统程序
     }
+
+    public int gettime(){return clock.gettime();}//获取当前时间
 }
 
 class Clock{//时钟类
@@ -55,11 +59,12 @@ class Memory{//内存类
     private boolean memory[][]=new boolean[64][512];
     //共32KB,每个物理块大小512B,共64个物理块,true表示该存储单元被占用，false表示该存储单元空闲
 
-    Memory(){
+    Memory(){//内存初始化
         for(int i=0;i<64;i++)
             for(int j=0;j<512;j++)
                 memory[i][j]=false;
     }
+
 }
 
 class Disk{//硬盘类
