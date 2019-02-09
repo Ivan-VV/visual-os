@@ -11,13 +11,27 @@ public class Computer {//裸机类
         page_table=0;
     }
 
-    public void computerstart()throws InterruptedException{//开机
-        clock.clockstart();//启动时钟
+    public void computerstart(){//开机
         Os os=new Os(this);//初始化操作系统
-        os.osstart();//开始执行操作系统程序
+        new Thread(){//启动时钟
+            public void run(){
+                try {
+                    clock.clockstart();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }.start();
+        new Thread(){
+            public void run(){
+                os.osstart();
+            }
+        }.start();//开始执行操作系统程序
     }
 
-    public int gettime(){return clock.gettime();}//获取当前时间
+    public int gettime(){//获取当前时间
+        return clock.gettime();
+    }
 }
 
 class Clock{//时钟类

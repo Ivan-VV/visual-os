@@ -1,5 +1,5 @@
 public class Process {//进程类
-    public static void create(){//进程创建原语
+    public static void create(Job job){//进程创建原语
 
     }
 
