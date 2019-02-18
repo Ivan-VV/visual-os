@@ -1,6 +1,6 @@
 public class Computer {//裸机类
     short page_table;//页表基址寄存器，存放页表基址
-    private Clock clock;//时钟
+    public Clock clock;//时钟
     private CPU cpu;//CPU
     private BUS bus;//总线
     private MMU mmu;//存储管理部件
@@ -22,15 +22,15 @@ public class Computer {//裸机类
                 }
             }
         }.start();
-        new Thread(){
+        new Thread(){//操作系统等待时钟中断进行调度
             public void run(){
-                os.osstart();
+                try {
+                    os.osstart();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
             }
-        }.start();//开始执行操作系统程序
-    }
-
-    public int gettime(){//获取当前时间
-        return clock.gettime();
+        }.start();
     }
 }
 
@@ -41,16 +41,23 @@ class Clock{//时钟类
         time=0;//系统时间初始为0
     }
 
-    public void clockstart()throws InterruptedException{//每隔10毫秒系统时间加10
+    public void clockstart()throws InterruptedException{//每隔10毫秒系统时间加10并进行时钟中断
         for(;;) {
             Thread.sleep(10);
-            time += 10;
+            synchronized(this){//给Clock对象加锁
+                time += 10;
+            }
+            interrupt();
         }
     }
 
-    public int gettime(){
+    public synchronized void interrupt() throws InterruptedException{//时钟中断
+        notifyAll();
+    }
+
+    public int gettime(){//获取当前时间
         return time;
-    }//获取当前时间
+    }
 }
 
 class CPU{//CPU类
@@ -70,17 +77,17 @@ class MMU{//存储管理部件类
 }
 
 class Memory{//内存类
-    private boolean memory[][]=new boolean[64][512];
-    //共32KB,每个物理块大小512B,共64个物理块,true表示该存储单元被占用，false表示该存储单元空闲
+    public int memory[]=new int[64];
+    //共32KB,每个物理块大小512B,共64个物理块,-1表示该物理块空闲，非负表示该物理块被相应序号进程占用
 
     Memory(){//内存初始化
         for(int i=0;i<64;i++)
-            for(int j=0;j<512;j++)
-                memory[i][j]=false;
+            memory[i]=-1;
     }
 
 }
 
 class Disk{//硬盘类
-
+    public boolean disk[][]=new boolean[32][64];
+    //1 个磁道中有64个扇区，1个柱面中有32个磁道,1个扇区为1个物理块，每个物理块大小512B，合计1MB,true表示该物理块被占用，false表示该物理块空闲
 }
