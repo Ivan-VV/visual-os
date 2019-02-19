@@ -16,7 +16,7 @@ public class Computer {//裸机类
         new Thread(){//启动时钟
             public void run(){
                 try {
-                    clock.clockstart();
+                    clock.clockstart(os);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
@@ -41,17 +41,21 @@ class Clock{//时钟类
         time=0;//系统时间初始为0
     }
 
-    public void clockstart()throws InterruptedException{//每隔10毫秒系统时间加10并进行时钟中断
+    public void clockstart(Os os)throws InterruptedException{//每隔10毫秒系统时间加10并进行时钟中断
         for(;;) {
             Thread.sleep(10);
             synchronized(this){//给Clock对象加锁
+                while(os.inter_flag){//线程同步，确保每次时钟中断都进行了调度
+                    wait();
+                }
                 time += 10;
             }
-            interrupt();
+            interrupt(os);
         }
     }
 
-    public synchronized void interrupt() throws InterruptedException{//时钟中断
+    public synchronized void interrupt(Os os) throws InterruptedException{//时钟中断
+        os.inter_flag=true;
         notifyAll();
     }
 
@@ -64,6 +68,7 @@ class CPU{//CPU类
     private short PC;//程序计数器
     private short IR;//指令寄存器
     private int []PSW=new int [2];//指令状态字寄存器
+    private int cpu_state;//CPU状态，表示内核态，1表示用户态
 
 }
 
