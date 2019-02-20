@@ -3,7 +3,7 @@ public class Computer {//裸机类
     public Clock clock;//时钟
     private CPU cpu;//CPU
     private BUS bus;//总线
-    private MMU mmu;//存储管理部件
+    public MMU mmu;//存储管理部件
     private Memory memory;//内存
     private Disk disk;//硬盘
 
@@ -78,7 +78,10 @@ class BUS{//总线类
 }
 
 class MMU{//存储管理部件类
-
+    public short add_change(Os os,short vir_add){//将逻辑地址转换为物理地址
+        short real_add=0;
+        return real_add;
+    }
 }
 
 class Memory{//内存类

@@ -18,11 +18,12 @@ public class Job {//作业类
 
 class Task{//任务类，一个作业可以分解为多个任务，每个任务创建一个进程
     public int size;//任务所需内存大小,单位是内存单元个数
+    public int data_size;//任务的数据部分所需内存大小
     public int instrucnum;//任务包含的指令数目
     public Instruct instruc_list[];//任务包含的指令序列
 
     Task(){
-        size=512+(int)(Math.random()*32257);//任务所需内存大小512B-32768B
+        size=0;
         instrucnum=20+(int)(Math.random()*281);//任务包含20-300条指令
         instruc_list=new Instruct[instrucnum];
         for(int i=0;i<instrucnum;i++){
@@ -30,7 +31,10 @@ class Task{//任务类，一个作业可以分解为多个任务，每个任务�
             instruct.Instruc_ID=i;//指令序号
             instruct.Instruc_State=(int)(Math.random()*3);//每条指令类型为0或1或2，0表示系统调用，1表示用户态计算操作，2表示PV操作
             instruct.Instruct_Times=(10+(int)(Math.random()*41))*10;//每条指令运行时间为100ms-500ms，为10的倍数
+            size+=2;//每条指令所需内存大小为2B
             instruc_list[i]=instruct;
         }
+        data_size=512+(int)(Math.random()*32257);//数据所需内存大小512B-32768B
+        size+=data_size;
     }
 }
