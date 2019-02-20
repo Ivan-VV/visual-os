@@ -59,7 +59,7 @@ class Clock{//时钟类
         notifyAll();
     }
 
-    public int gettime(){//获取当前时间
+    public synchronized int gettime(){//获取当前时间
         return time;
     }
 }

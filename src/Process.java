@@ -8,6 +8,8 @@ public class Process {//进程类
     Instruct instruc_list[];//进程包含的指令序列
     int size;//进程所需内存大小
     int data_size;//进程的数据部分所需内存大小
+    int page_num;//为进程分配的页面数
+    int pages[];//为进程分配的页面序列
     int PSW;//当前指令编号
     int intime;//进程创建时间
     int outtime;//进程销毁时间
