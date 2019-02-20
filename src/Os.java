@@ -7,10 +7,14 @@ public class Os {
     public boolean memory_table[]=new boolean[64];
     //内存页框表，下标为页框号，true表示该页框被占用，false表示该页框空闲
 
-    public byte page_table[]=new byte[128];//页表,下标为页面号，每个byte有8位
-    // 第0位为分配标志，0表示该页面空闲，1表示该页面已分配给进程
+    public byte page_table[][]=new byte[128][2];//页表,下标为页面号，每个byte有8位
+    //第一列：
+    // 第0位为分配标志位，0表示该页面空闲，1表示该页面已分配给进程
     // 第1位为驻留标志位，0表示该页面不在内存，1表示该页面已经装入内存
     // 第2-7位表示该页面装入的内存块号
+    //第二列：
+    // 第0位为保护标志，0表示不受保护，1表示受保护
+    // 第1-7位作为LRU-老化算法的页面引用计数器
 
     public boolean inter_flag;//中断标志位，true为中断，false不能中断
 
@@ -24,8 +28,10 @@ public class Os {
         inter_flag=false;
         for(int i=0;i<64;i++)
             memory_table[i]=false;
-        for(int i=0;i<128;i++)
-            page_table[i]=0;
+        for(int i=0;i<128;i++) {
+            page_table[i][0] = 0;
+            page_table[i][1] = 0;
+        }
     }
 
     public void osstart()throws InterruptedException{//启动操作系统程序
@@ -43,20 +49,120 @@ public class Os {
 
     public void memory_manage(Process process,int mode){//内存管理
         //mode=1，创建进程时调用，为进程分配页面，若此时有空余页框，则将页面装入内存
-        //mode=2，进行进程上下文切换时调用，确保将进程所在页面装入内存
-        //mode=3，撤销进程时调用，回收进程所用内存
+        //mode=2，开始执行进程时调用，每执行一条指令也要调用一次确保将执行到的指令所在页面和进程所需数据所在页面装入内存，
+        //        并将逻辑地址转换为物理地址
+        //mode=3，撤销进程时调用，回收进程所用内存和页面
         switch (mode){
-            case 1:
-                process.page_num=process.size%512==0?process.size/512:process.size/512+1;
+            case 1: {
+                process.page_num = process.size % 512 == 0 ? process.size / 512 : process.size / 512 + 1;
                 //求出为应进程分配的页面数量
-                process.pages=new int[process.page_num];
-                for(int i=0;i<process.page_num;i++){
-                    for(int j=0;j<128;j++){//寻找尚未分配出去的页面
-                        
+                process.pages = new int[process.page_num];
+                for (int i = 0; i < process.page_num; i++) {
+                    boolean flag = false;
+                    for (int j = 0; j < 128; j++) {//寻找尚未分配出去的页面
+                        if ((page_table[j][0] & 128) == 0) {//分配标志位为0
+                            page_table[j][0] = (byte) (page_table[j][0] | 128);//将分配标志位置1
+                            process.pages[i] = j;
+                            flag = true;
+                            break;
+                        }
+                    }
+                    if (flag == false) {
+                        System.out.println("没有空闲页面！");
+                        break;
                     }
                 }
+                for (int i = 0; i < process.page_num; i++) {
+                    boolean flag = false;
+                    for (int j = 0; j < 64; j++) {//寻找空闲的页框
+                        if (!memory_table[j]) {//该页框空闲
+                            page_table[process.pages[i]][0] = (byte) (page_table[process.pages[i]][0] | 64);
+                            //将页表项的驻留标志位改为1
+                            page_table[process.pages[i]][0] = (byte) (page_table[process.pages[i]][0] & 192);
+                            page_table[process.pages[i]][0] += (byte) j;
+                            //将页面所分得页框的页框号写入该页表项的2-7位
+                            memory_table[j] = true;//表示该页框已被占用
+                            flag = true;
+                            break;
+                        }
+                    }
+                    if (flag == false) {
+                        System.out.println("没有空闲页框！");
+                        break;
+                    }
+                }
+            }
+            case 2: {
+                int instr_add = process.PSW * 2;//当前执行到指令的逻辑地址
+                int instr_page_num = instr_add / 512;//当前执行到指令的逻辑地址所在该进程分得的第几个页面
+                int instr_page = process.pages[instr_page_num];//当前执行到指令的逻辑地址所在页面号
+                page_table[instr_page][1] = (byte) (page_table[instr_page][1] | 128);//将该页面保护位置1
+
+                if (process.instruc_list[process.PSW].data_flag == 1) {//若当前执行到的指令要访问数据区
+                    int data_add_s = process.instrucnum * 2;//进程的数据区的起始逻辑地址
+                    int data_add_e = process.data_size + data_add_s;//进程的数据区的结束逻辑地址
+                    int data_page_s_num = data_add_s / 512;//进程的数据区起始所在该进程分得的第几个页面
+                    int data_page_e_num = data_add_e / 512;//进程的数据区结束所在该进程分得的第几个页面
+                    for (int i = data_page_s_num; i <= data_page_e_num; i++)//将数据区分得的几个页面保护位置1
+                        page_table[process.pages[i]][1] = (byte) (page_table[process.pages[i]][1] | 128);
+
+                    if ((page_table[instr_page][0] & 64) == 0) {//如果指令所在页面没有装入内存
+                        page_in(instr_page);//将指令所在页面装入内存
+                        page_table[instr_page][1] = (byte) (page_table[instr_page][1] | 64);
+                        page_table[instr_page][1] = (byte) (page_table[instr_page][1] & 192);
+                        //引用该页面，计数器最左位置1，计数器其他位置0
+                    }
+                    else//如果指令所在页面已装入内存
+                        page_table[instr_page][1] = (byte) (page_table[instr_page][1] | 64);
+                        //引用该页面，计数器最左位置1
+
+                    for (int i = data_page_s_num; i <= data_page_e_num; i++) {//检查数据区分得的几个页面
+                        if ((page_table[process.pages[i]][0] & 64) == 0) {//如果该页面没有装入内存
+                            page_in(process.pages[i]);//将该页面装入内存
+                            page_table[process.pages[i]][1] = (byte) (page_table[process.pages[i]][1] | 64);
+                            page_table[process.pages[i]][1] = (byte) (page_table[process.pages[i]][1] & 192);
+                            //引用该页面，计数器最左位置1，计数器其他位置0
+                        }
+                        else//如果指该页面已装入内存
+                            page_table[process.pages[i]][1] = (byte) (page_table[process.pages[i]][1] | 64);
+                            //引用该页面，计数器最左位置1
+                    }
+
+                    //确保所有页面都装入内存后解除保护，将指令所在页面和数据区所在页面保护位均置为0
+                    page_table[instr_page][1] = (byte) (page_table[instr_page][1] & 127);
+                    for (int i = data_page_s_num; i <= data_page_e_num; i++)
+                        page_table[process.pages[i]][1] = (byte) (page_table[process.pages[i]][1] & 127);
+                }
+                else{//若当前执行到的指令无需访问数据区
+                    if ((page_table[instr_page][0] & 64) == 0) {//如果指令所在页面没有装入内存
+                        page_in(instr_page);//将指令所在页面装入内存
+                        page_table[instr_page][1] = (byte) (page_table[instr_page][1] | 64);
+                        page_table[instr_page][1] = (byte) (page_table[instr_page][1] & 192);
+                        //引用该页面，计数器最左位置1，计数器其他位置0
+                    }
+                    else//如果指令所在页面已装入内存
+                        page_table[instr_page][1] = (byte) (page_table[instr_page][1] | 64);
+                    //引用该页面，计数器最左位置1
+
+                    //确保所有页面都装入内存后解除保护，将指令所在页面保护位置为0
+                    page_table[instr_page][1] = (byte) (page_table[instr_page][1] & 127);
+                }
+            }
+            case 3:{
+                for(int i=0;i<process.page_num;i++){
+                    if((page_table[process.pages[i]][0]&64)==64){//若该页面已分配页框
+                        int j=page_table[process.pages[i]][0]&63;//求出该页面分配的页框号
+                        memory_table[i]=false;//释放占用页框
+                        page_table[process.pages[i]][0]=(byte)(page_table[process.pages[i]][0]&191);
+                        //将该的页面的驻留标志位改为0
+                    }
+                    page_table[process.pages[i]][0]=(byte)(page_table[process.pages[i]][0]&127);
+                    //将该的页面的分配标志位改为0
+                }
+            }
         }
     }
+
 
     public void cpu_manage(){//处理器管理
 
@@ -90,5 +196,54 @@ public class Os {
 
     public void wake(Process process){//进程唤醒原语
 
+    }
+
+    void page_in(int page){//将页面号为page的页面装入，采用LRU算法
+        boolean flag=false;
+        for(int i=0;i<64;i++){//寻找空闲的页框
+            if(!memory_table[i]) {//该页框空闲
+                page_table[page][0]=(byte)(page_table[page][0]|64);
+                //将页表项的驻留标志位改为1
+                page_table[page][0]=(byte)(page_table[page][0]&192);
+                page_table[page][0]+=(byte)i;
+                //将页面所分得页框的页框号写入该页表项的2-7位
+                memory_table[i]=true;//表示该页框已被占用
+                flag=true;
+                break;
+            }
+        }
+        if(flag==false){//没有空闲页框，则要替换已分配的页框，采用LRU算法，即选出计数器最小的一个页面替换之
+            int min=0;
+            int add_min=-1;
+            for(int i=0;i<128;i++){//找出最近最少使用的页面
+                if((page_table[i][1]&128)==128) continue;//跳过受保护页面
+                if((page_table[i][0]&64)==0) continue;//跳过没有分配页框的页面
+                if(add_min==-1){
+                    min=(page_table[i][1]&127);
+                    add_min=i;
+                }
+                else if((page_table[i][1]&127)<min){
+                    min=(page_table[i][1]&127);
+                    add_min=i;
+                }
+            }
+            int i=page_table[add_min][0]&63;//求出要替换掉的页面所占的页框号
+            page_table[add_min][0]=(byte)(page_table[add_min][0]&191);//将要替换的页面的驻留标志位改为0
+            page_table[page][0]=(byte)(page_table[page][0]|64);
+            //将要装入页面的页表项的驻留标志位改为1
+            page_table[page][0]=(byte)(page_table[page][0]&192);
+            page_table[page][0]+=(byte)i;
+            //将页面所分得页框的页框号写入该页表项的2-7位
+        }
+    }
+
+    void page_use_move(){//每过1000ms将每个在内存中页面的引用计数器右移1位，在cpu_manage中调用
+        for(int i=0;i<128;i++){
+            if((page_table[i][0]&64)==0) continue;//跳过没有分配页框的页面
+            byte flag=(byte)(page_table[i][1]&128);//保存该页面的保护位
+            page_table[i][1]=(byte)(page_table[i][1]>>>1);
+            page_table[i][1]=(byte)(page_table[i][1]&63);
+            page_table[i][1]=(byte)(page_table[i][1]&flag);//还原保护位
+        }
     }
 }
