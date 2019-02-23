@@ -51,6 +51,7 @@ class Clock{//时钟类
                 time += 10;
             }
             interrupt(os);
+            if(os.end_flag) break;
         }
     }
 

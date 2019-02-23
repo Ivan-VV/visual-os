@@ -18,6 +18,10 @@ public class Os {
 
     public boolean inter_flag;//中断标志位，true为中断，false不能中断
 
+    public Job jobs[];//随机生成的作业序列
+    public int job_num;
+    public boolean end_flag;
+
     Queue<Process>q1;//运行队列（数量只能为1或0）
     Queue<Process>q2;//就绪队列
     Queue<Process>q3;//阻塞队列
@@ -32,6 +36,11 @@ public class Os {
             page_table[i][0] = 0;
             page_table[i][1] = 0;
         }
+        job_num=5+(int)(Math.random()*6);//随机生成5-10个作业
+        jobs=new Job[job_num];
+        for(int i=0;i<job_num;i++)//初始化作业序列
+            jobs[i]=new Job();
+        end_flag=false;
     }
 
     public void osstart()throws InterruptedException{//启动操作系统程序
@@ -43,6 +52,7 @@ public class Os {
                 cpu_manage();
                 inter_flag=false;
                 notifyAll();
+                if(end_flag) break;
             }
         }
     }
@@ -165,10 +175,20 @@ public class Os {
 
 
     public void cpu_manage(){//处理器管理
+        int time=computer.clock.gettime();
+        if(time%1000==0)page_use_move();//每过1000ms将每个在内存中页面的引用计数器右移1位
+        for(int i=0;i<job_num;i++){//为进入系统的作业创建进程
+            if(jobs[i].intime==time){
+                for(int j=0;j<jobs[i].task_num;j++)
+                    create(jobs[i].task_list[j]);
+                break;
+            }
+        }
 
+        //进程调度
     }
 
-    public Process create(Task task){//进程创建原语
+    public void create(Task task){//进程创建原语
         Process process=new Process();
         process.ProID=Process.num++;
         process.instrucnum=task.instrucnum;
@@ -183,7 +203,6 @@ public class Os {
         process.PSW=0;//从进程的第1条指令开始执行
         process.intime=computer.clock.gettime();
         q2.offer(process);//创建好的进程进入就绪队列
-        return process;
     }
 
     public void destroy(Process process){//进程撤销原语
@@ -246,4 +265,5 @@ public class Os {
             page_table[i][1]=(byte)(page_table[i][1]&flag);//还原保护位
         }
     }
+
 }
