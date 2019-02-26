@@ -10,9 +10,10 @@ public class Process {//进程类
     int data_size;//进程的数据部分所需内存大小
     int page_num;//为进程分配的页面数
     int pages[];//为进程分配的页面序列
-    int PSW;//当前指令编号
+    short PSW;//当前指令编号
     int intime;//进程创建时间
     int outtime;//进程销毁时间
+    int starttime;//进程开始占据CPU时间
     Stack stack;//线程绑定的栈，用来进行现场保护
 
     /*public static Process create(Os os,Task task){//进程创建原语

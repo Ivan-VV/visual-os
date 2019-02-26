@@ -20,7 +20,10 @@ public class Os {
 
     public Job jobs[];//随机生成的作业序列
     public int job_num;
-    public boolean end_flag;
+    public boolean block_flag;//当前是否有进程占用临界资源，false为否，true为是
+    public boolean end_flag;//是否执行完所有作业，false为否，true为是
+    private int instr_flag;//表示当前CPU正在执行的指令类型，0表示系统调用，1表示用户态计算操作，2表示PV操作
+    private int pv_flag;//表示是否已有进程进行PV操作且未结束，-1表示无，非负表示占用临界资源的进程ID
 
     Queue<Process>q1;//运行队列（数量只能为1或0）
     Queue<Process>q2;//就绪队列
@@ -40,19 +43,26 @@ public class Os {
         jobs=new Job[job_num];
         for(int i=0;i<job_num;i++)//初始化作业序列
             jobs[i]=new Job();
+        block_flag=false;
         end_flag=false;
+        pv_flag=-1;
     }
 
-    public void osstart()throws InterruptedException{//启动操作系统程序
+    public void osstart()throws InterruptedException{//启动操作系统
         for(;;){
-            synchronized (computer.clock){
-                while(!inter_flag){//线程同步，确保每次时钟中断都进行了调度
-                    wait();
+            try {
+                synchronized (computer.clock) {
+                    while (!inter_flag) {//线程同步，确保每次时钟中断都进行了调度
+                        wait();
+                    }
+                    cpu_manage();
+                    gui();
+                    inter_flag = false;
+                    notifyAll();
+                    if (end_flag) break;
                 }
-                cpu_manage();
-                inter_flag=false;
-                notifyAll();
-                if(end_flag) break;
+            }catch (NullPointerException e){
+                e.printStackTrace();
             }
         }
     }
@@ -174,11 +184,11 @@ public class Os {
     }
 
 
-    public void cpu_manage(){//处理器管理
-        int time=computer.clock.gettime();
-        if(time%1000==0)page_use_move();//每过1000ms将每个在内存中页面的引用计数器右移1位
+    public void cpu_manage(){//处理器管理，时间片为2000ms
+        int nowtime=computer.clock.gettime();
+        if(nowtime%1000==0)page_use_move();//每过1000ms将每个在内存中页面的引用计数器右移1位
         for(int i=0;i<job_num;i++){//为进入系统的作业创建进程
-            if(jobs[i].intime==time){
+            if(jobs[i].intime==nowtime){
                 for(int j=0;j<jobs[i].task_num;j++)
                     create(jobs[i].task_list[j]);
                 break;
@@ -186,7 +196,76 @@ public class Os {
         }
 
         //进程调度
+        if(q1.size()==0&&q2.size()==0&&q3.size()==0&&nowtime>jobs[job_num-1].intime) {//当前没有进程在运行且没有进程就绪且没有进程阻塞且不会再有进程创建
+            end_flag=true;
+        }else{
+            if(q1.size()!=0){//有进程正在运行
+                if(computer.cpu.PC==q1.peek().instrucnum){//进程已执行完所有指令
+                    destroy();//撤销进程
+                }else {
+                    memory_manage(q1.peek(),2);
+                    instr_flag = q1.peek().instruc_list[computer.cpu.PC].Instruc_State;
+                    if (instr_flag == 0) {//若执行的是系统调用指令
+                        q1.peek().instruc_list[computer.cpu.PC].needtime -= 10;
+                        if (q1.peek().instruc_list[computer.cpu.PC].needtime <= 0) {
+                            computer.cpu.PC++;
+                            run_ready();
+                        }
+                    } else if (instr_flag == 1) {//若执行的是用户态计算指令
+                        q1.peek().instruc_list[computer.cpu.PC].needtime -= 10;
+                        if (q1.peek().instruc_list[computer.cpu.PC].needtime <= 0)
+                            computer.cpu.PC++;
+                        int runtime = nowtime - q1.peek().starttime;
+                        if (runtime >= 2000)
+                            run_ready();
+                    } else if (instr_flag == 2) {//若执行的是PV操作指令
+                        if (pv_flag == -1 || pv_flag == q1.peek().ProID) {//临界资源空闲
+                            if (pv_flag == -1) pv_flag = q1.peek().ProID;//将临界资源分配给该进程
+                            q1.peek().instruc_list[computer.cpu.PC].needtime -= 10;
+                            if (q1.peek().instruc_list[computer.cpu.PC].needtime <= 0) {
+                                pv_flag = -1;
+                                if (q3.size() != 0) wake();
+                                computer.cpu.PC++;
+                            }
+                            int runtime = nowtime - q1.peek().starttime;
+                            if (runtime >= 2000)
+                                run_ready();
+                        } else {//临界资源被占用
+                            run_wait();
+                        }
+                    }
+                }
+            }else{//当前CPU空闲
+                if(q2.size()!=0){
+                    q1.offer(q2.poll());
+                    computer.cpu.PC=q1.peek().PSW;
+                }
+            }
+        }
     }
+
+    private void run_ready(){
+        if (q2.size() != 0) {
+            q1.peek().PSW = computer.cpu.PC;
+            q2.offer(q1.poll());
+            q1.offer(q2.poll());
+            computer.cpu.PC = q1.peek().PSW;
+            memory_manage(q1.peek(),2);
+        } else {
+            q1.peek().starttime = computer.clock.gettime();
+        }
+    }
+
+    private void run_wait(){
+        q1.peek().PSW=computer.cpu.PC;
+        q3.offer(q1.poll());
+        if(q2.size()!=0){
+            q1.offer(q2.poll());
+            computer.cpu.PC=q1.peek().PSW;
+            memory_manage(q1.peek(),2);
+        }
+    }
+
 
     public void create(Task task){//进程创建原语
         Process process=new Process();
@@ -205,16 +284,23 @@ public class Os {
         q2.offer(process);//创建好的进程进入就绪队列
     }
 
-    public void destroy(Process process){//进程撤销原语
-        q4.offer(process);//将该进程放入已完成队列
+    public void destroy(){//进程撤销原语
+        memory_manage(q1.peek(),3);//收回该进程所占的内存空间
+        q1.peek().outtime=computer.clock.gettime();//记录进程撤销时间
+        q4.offer(q1.poll());//将该进程放入已完成队列
+        if(q2.size()!=0){
+            q1.offer(q2.poll());
+            computer.cpu.PC=q1.peek().PSW;
+            memory_manage(q1.peek(),2);
+        }
     }
 
     public void block(Process process){//进程阻塞原语
         q3.offer(process);//将该进程放入阻塞队列
     }
 
-    public void wake(Process process){//进程唤醒原语
-
+    public void wake(){//进程唤醒原语
+        q2.offer(q3.poll());
     }
 
     void page_in(int page){//将页面号为page的页面装入，采用LRU算法
@@ -266,4 +352,24 @@ public class Os {
         }
     }
 
+    void gui(){//可视化显示
+        Queue<Process>temp;
+        System.out.print(computer.clock.gettime()+"时刻|运行队列 ");
+        temp=q1;
+        for(int i=0;i<temp.size();i++)
+            System.out.print(""+temp.poll().ProID);
+        System.out.print("|就绪队列");
+        temp=q2;
+        for(int i=0;i<temp.size();i++)
+            System.out.print(""+temp.poll().ProID);
+        System.out.print("|阻塞队列");
+        temp=q3;
+        for(int i=0;i<temp.size();i++)
+            System.out.print(""+temp.poll().ProID);
+        System.out.print("|已完成进程");
+        temp=q4;
+        for(int i=0;i<temp.size();i++)
+            System.out.print(""+temp.poll().ProID);
+        System.out.println("");
+    }
 }

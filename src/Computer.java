@@ -1,7 +1,7 @@
 public class Computer {//裸机类
     short page_table;//页表基址寄存器，存放页表基址
     public Clock clock;//时钟
-    private CPU cpu;//CPU
+    public CPU cpu;//CPU
     private BUS bus;//总线
     public MMU mmu;//存储管理部件
     private Memory memory;//内存
@@ -19,6 +19,8 @@ public class Computer {//裸机类
                     clock.clockstart(os);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
+                }catch (NullPointerException e){
+                    e.printStackTrace();
                 }
             }
         }.start();
@@ -28,10 +30,36 @@ public class Computer {//裸机类
                     os.osstart();
                 } catch (InterruptedException e) {
                     e.printStackTrace();
+                }catch (NullPointerException e){
+                    e.printStackTrace();
                 }
             }
         }.start();
     }
+
+    class CPU{//CPU类
+        public short PC;//程序计数器
+        private short IR;//指令寄存器
+        private int []PSW=new int [2];//指令状态字寄存器
+        private int cpu_state;//CPU状态，表示内核态，1表示用户态
+
+        public void cpu_run(Os os){
+            for(;;) {
+                if (os.q1.size() != 0) {
+                    PC = (short) os.q1.peek().PSW;
+                    if(PC==os.q1.peek().instrucnum)
+                        System.out.println(clock.gettime()+"时刻"+os.q1.peek().ProID+ "进程执行结束");
+                    os.q1.peek().instruc_list[PC].starttime = clock.gettime();
+                }
+            }
+        }
+    }
+
+    public static void main(String []Args){
+        Computer computer=new Computer();
+        computer.computerstart();
+    }
+
 }
 
 class Clock{//时钟类
@@ -65,18 +93,11 @@ class Clock{//时钟类
     }
 }
 
-class CPU{//CPU类
-    private short PC;//程序计数器
-    private short IR;//指令寄存器
-    private int []PSW=new int [2];//指令状态字寄存器
-    private int cpu_state;//CPU状态，表示内核态，1表示用户态
-
-}
-
 class BUS{//总线类
     private short addbus;//16位地址线
     private short databus;//16位数据线
 }
+
 
 class MMU{//存储管理部件类
     public short add_change(Os os,short vir_add){//将逻辑地址转换为物理地址
@@ -84,7 +105,6 @@ class MMU{//存储管理部件类
         return real_add;
     }
 }
-
 class Memory{//内存类
     public int memory[]=new int[64];
     //共32KB,每个物理块大小512B,共64个物理块,-1表示该物理块空闲，非负表示该物理块被相应序号进程占用
