@@ -50,19 +50,15 @@ public class Os {
 
     public void osstart()throws InterruptedException{//启动操作系统
         for(;;){
-            try {
-                synchronized (computer.clock) {
-                    while (!inter_flag) {//线程同步，确保每次时钟中断都进行了调度
-                        wait();
-                    }
-                    cpu_manage();
-                    gui();
-                    inter_flag = false;
-                    notifyAll();
-                    if (end_flag) break;
+            synchronized (computer.clock) {
+                if(!inter_flag) {//线程同步，确保每次时钟中断都进行了调度
+                    wait();
                 }
-            }catch (NullPointerException e){
-                e.printStackTrace();
+                cpu_manage();
+                gui();
+                inter_flag = false;
+                notifyAll();
+                if (end_flag) break;
             }
         }
     }

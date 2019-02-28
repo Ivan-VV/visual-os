@@ -8,6 +8,12 @@ public class Computer {//裸机类
     private Disk disk;//硬盘
 
     Computer(){//构造函数
+        clock=new Clock();
+        cpu=new CPU();
+        bus=new BUS();
+        mmu=new MMU();
+        memory=new Memory();
+        disk=new Disk();
         page_table=0;
     }
 
@@ -88,7 +94,7 @@ class Clock{//时钟类
         notifyAll();
     }
 
-    public synchronized int gettime(){//获取当前时间
+    public int gettime(){//获取当前时间
         return time;
     }
 }
