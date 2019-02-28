@@ -31,6 +31,7 @@ class Task{//任务类，一个作业可以分解为多个任务，每个任务�
             instruct.Instruc_ID=i;//指令序号
             instruct.Instruc_State=(int)(Math.random()*3);//每条指令类型为0或1或2，0表示系统调用，1表示用户态计算操作，2表示PV操作
             instruct.Instruct_Times=(10+(int)(Math.random()*41))*10;//每条指令运行时间为100ms-500ms，为10的倍数
+            instruct.needtime=instruct.Instruct_Times;
             instruct.data_flag=(int)(Math.random()*2);//表示指令是否要访问数据，0不访问，1访问
             size+=2;//每条指令所需内存大小为2B
             instruc_list[i]=instruct;

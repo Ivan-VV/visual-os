@@ -19,6 +19,7 @@ public class Computer {//裸机类
 
     public void computerstart(){//开机
         Os os=new Os(this);//初始化操作系统
+        os.showjobs();
         new Thread(){//启动时钟
             public void run(){
                 try {

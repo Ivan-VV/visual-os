@@ -350,23 +350,39 @@ public class Os {
     }
 
     void gui(){//可视化显示
-        Queue<Process>temp;
-        System.out.print(computer.clock.gettime()+"时刻|运行队列 ");
+        Queue<Process>temp=q1;
+        System.out.print(computer.clock.gettime()+"时刻|运行队列:");
         temp=q1;
         for(int i=0;i<temp.size();i++)
-            System.out.print(""+temp.poll().ProID);
-        System.out.print("|就绪队列");
+            System.out.print(temp.poll().ProID+" ");
+        System.out.print("|就绪队列:");
         temp=q2;
         for(int i=0;i<temp.size();i++)
-            System.out.print(""+temp.poll().ProID);
-        System.out.print("|阻塞队列");
+            System.out.print(temp.poll().ProID+" ");
+        System.out.print("|阻塞队列:");
         temp=q3;
         for(int i=0;i<temp.size();i++)
-            System.out.print(""+temp.poll().ProID);
-        System.out.print("|已完成进程");
+            System.out.print(temp.poll().ProID+" ");
+        System.out.print("|已完成进程:");
         temp=q4;
         for(int i=0;i<temp.size();i++)
-            System.out.print(""+temp.poll().ProID);
+            System.out.print(temp.poll().ProID+" ");
         System.out.println("");
+    }
+
+    void showjobs(){
+        for(int i=0;i<job_num;i++){
+            System.out.println("作业"+(i+1)+":  intime"+jobs[i].intime);
+            for(int j=0;j<jobs[i].task_num;j++){
+                System.out.println("进程"+(j+1)+":  指令数目"+jobs[i].task_list[j].instrucnum
+                +"  所需内存"+jobs[i].task_list[j].size);
+                for(int k=0;k<jobs[i].task_list[j].instrucnum;k++){
+                    System.out.println("ID"+jobs[i].task_list[j].instruc_list[k].Instruc_ID
+                    +"  类型"+jobs[i].task_list[j].instruc_list[k].Instruc_State+"  运行时间"
+                    +jobs[i].task_list[j].instruc_list[k].Instruct_Times+"  访问数据"
+                    +jobs[i].task_list[j].instruc_list[k].data_flag);
+                }
+            }
+        }
     }
 }
