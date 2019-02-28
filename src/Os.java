@@ -27,9 +27,9 @@ public class Os {
     private int pv_flag;//表示是否已有进程进行PV操作且未结束，-1表示无，非负表示占用临界资源的进程ID
 
     Queue<Process>q1=new LinkedList<Process>();//运行队列（数量只能为1或0）
-    Queue<Process>q2=new LinkedList<Process>();;//就绪队列
-    Queue<Process>q3=new LinkedList<Process>();;//阻塞队列
-    Queue<Process>q4=new LinkedList<Process>();;//已完成的进程
+    Queue<Process>q2=new LinkedList<Process>();//就绪队列
+    Queue<Process>q3=new LinkedList<Process>();//阻塞队列
+    Queue<Process>q4=new LinkedList<Process>();//已完成的进程
 
     Os(Computer computer){//构造函数
         this.computer=computer;
@@ -350,27 +350,45 @@ public class Os {
     }
 
     void gui(){//可视化显示
-        Queue<Process>temp=q1;
+        /*Queue<Process>temp;*/
         System.out.print(computer.clock.gettime()+"时刻|运行队列:");
-        temp=q1;
-        for(int i=0;i<temp.size();i++)
-            System.out.print(temp.poll().ProID+" ");
+        for(Process process:q1){
+            System.out.print(process.ProID+" ");
+        }
+        /*for(int i=0;i<temp.size();i++)
+            System.out.print(temp.poll().ProID+" ");*/
         System.out.print("|就绪队列:");
-        temp=q2;
+        for(Process process:q2){
+            System.out.print(process.ProID+" ");
+        }
+        /*temp=q2;
         for(int i=0;i<temp.size();i++)
-            System.out.print(temp.poll().ProID+" ");
+            System.out.print(temp.poll().ProID+" ");*/
         System.out.print("|阻塞队列:");
-        temp=q3;
+        for(Process process:q3){
+            System.out.print(process.ProID+" ");
+        }
+        /*temp=q3;
         for(int i=0;i<temp.size();i++)
-            System.out.print(temp.poll().ProID+" ");
+            System.out.print(temp.poll().ProID+" ");*/
         System.out.print("|已完成进程:");
-        temp=q4;
+        for(Process process:q4){
+            System.out.print(process.ProID+" ");
+        }
+        /*temp=q4;
         for(int i=0;i<temp.size();i++)
-            System.out.print(temp.poll().ProID+" ");
+            System.out.print(temp.poll().ProID+" ");*/
         System.out.println("");
     }
 
     void showjobs(){
+        System.out.println("共有"+job_num+"个作业");
+        int n=0;
+        for(int i=0;i<job_num;i++){
+            for(int j=0;j<jobs[i].task_num;j++)
+                n++;
+        }
+        System.out.println("共有"+n+"个进程");
         for(int i=0;i<job_num;i++){
             System.out.println("作业"+(i+1)+":  intime"+jobs[i].intime);
             for(int j=0;j<jobs[i].task_num;j++){
