@@ -79,17 +79,17 @@ class Clock{//时钟类
         for(;;) {
             Thread.sleep(10);
             synchronized(this){//给Clock对象加锁
-                while(os.inter_flag){//线程同步，确保每次时钟中断都进行了调度
+                if(os.inter_flag){//线程同步，确保每次时钟中断都进行了调度
                     wait();
                 }
                 time += 10;
+                interrupt(os);
             }
-            interrupt(os);
             if(os.end_flag) break;
         }
     }
 
-    public synchronized void interrupt(Os os) throws InterruptedException{//时钟中断
+    public void interrupt(Os os){//时钟中断
         os.inter_flag=true;
         notifyAll();
     }

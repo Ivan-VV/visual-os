@@ -1,5 +1,6 @@
 import java.util.Queue;
 import java.util.Stack;
+import java.util.LinkedList;
 
 public class Os {
     private Computer computer;//操作系统管理的裸机
@@ -25,10 +26,10 @@ public class Os {
     private int instr_flag;//表示当前CPU正在执行的指令类型，0表示系统调用，1表示用户态计算操作，2表示PV操作
     private int pv_flag;//表示是否已有进程进行PV操作且未结束，-1表示无，非负表示占用临界资源的进程ID
 
-    Queue<Process>q1;//运行队列（数量只能为1或0）
-    Queue<Process>q2;//就绪队列
-    Queue<Process>q3;//阻塞队列
-    Queue<Process>q4;//已完成的进程
+    Queue<Process>q1=new LinkedList<Process>();//运行队列（数量只能为1或0）
+    Queue<Process>q2=new LinkedList<Process>();;//就绪队列
+    Queue<Process>q3=new LinkedList<Process>();;//阻塞队列
+    Queue<Process>q4=new LinkedList<Process>();;//已完成的进程
 
     Os(Computer computer){//构造函数
         this.computer=computer;
@@ -52,12 +53,12 @@ public class Os {
         for(;;){
             synchronized (computer.clock) {
                 if(!inter_flag) {//线程同步，确保每次时钟中断都进行了调度
-                    wait();
+                    computer.clock.wait();
                 }
                 cpu_manage();
                 gui();
                 inter_flag = false;
-                notifyAll();
+                computer.clock.notifyAll();
                 if (end_flag) break;
             }
         }
