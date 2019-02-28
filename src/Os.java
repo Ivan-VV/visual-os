@@ -247,7 +247,11 @@ public class Os {
             q2.offer(q1.poll());
             q1.offer(q2.poll());
             computer.cpu.PC = q1.peek().PSW;
-            memory_manage(q1.peek(),2);
+            if(computer.cpu.PC==q1.peek().instrucnum){//进程已执行完所有指令
+                destroy();//撤销进程
+            }else {
+                memory_manage(q1.peek(), 2);
+            }
         } else {
             q1.peek().starttime = computer.clock.gettime();
         }
@@ -259,7 +263,11 @@ public class Os {
         if(q2.size()!=0){
             q1.offer(q2.poll());
             computer.cpu.PC=q1.peek().PSW;
-            memory_manage(q1.peek(),2);
+            if(computer.cpu.PC==q1.peek().instrucnum){//进程已执行完所有指令
+                destroy();//撤销进程
+            }else {
+                memory_manage(q1.peek(), 2);
+            }
         }
     }
 
