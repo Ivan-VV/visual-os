@@ -117,7 +117,7 @@ public class Os {
 
                 if (process.instruc_list[process.PSW].data_flag == 1) {//若当前执行到的指令要访问数据区
                     int data_add_s = process.instrucnum * 2;//进程的数据区的起始逻辑地址
-                    int data_add_e = process.data_size + data_add_s;//进程的数据区的结束逻辑地址
+                    int data_add_e = process.data_size + data_add_s-1;//进程的数据区的结束逻辑地址
                     int data_page_s_num = data_add_s / 512;//进程的数据区起始所在该进程分得的第几个页面
                     int data_page_e_num = data_add_e / 512;//进程的数据区结束所在该进程分得的第几个页面
                     for (int i = data_page_s_num; i <= data_page_e_num; i++)//将数据区分得的几个页面保护位置1
@@ -181,7 +181,7 @@ public class Os {
     }
 
 
-    public void cpu_manage(){//处理器管理，时间片为2000ms
+    public void cpu_manage(){//处理器管理，时间片为500ms
         int nowtime=computer.clock.gettime();
         if(nowtime%1000==0)page_use_move();//每过1000ms将每个在内存中页面的引用计数器右移1位
         for(int i=0;i<job_num;i++){//为进入系统的作业创建进程
@@ -213,7 +213,7 @@ public class Os {
                         if (q1.peek().instruc_list[computer.cpu.PC].needtime <= 0)
                             computer.cpu.PC++;
                         int runtime = nowtime - q1.peek().starttime;
-                        if (runtime >= 2000)
+                        if (runtime >= 500)//用完时间片
                             run_ready();
                     } else if (instr_flag == 2) {//若执行的是PV操作指令
                         if (pv_flag == -1 || pv_flag == q1.peek().ProID) {//临界资源空闲
@@ -225,7 +225,7 @@ public class Os {
                                 computer.cpu.PC++;
                             }
                             int runtime = nowtime - q1.peek().starttime;
-                            if (runtime >= 2000)
+                            if (runtime >= 500)
                                 run_ready();
                         } else {//临界资源被占用
                             run_wait();
