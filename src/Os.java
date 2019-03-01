@@ -108,6 +108,7 @@ public class Os {
                         break;
                     }
                 }
+                break;
             }
             case 2: {
                 int instr_add = process.PSW * 2;//当前执行到指令的逻辑地址
@@ -164,6 +165,7 @@ public class Os {
                     //确保所有页面都装入内存后解除保护，将指令所在页面保护位置为0
                     page_table[instr_page][1] = (byte) (page_table[instr_page][1] & 127);
                 }
+                break;
             }
             case 3:{
                 for(int i=0;i<process.page_num;i++){
@@ -176,6 +178,7 @@ public class Os {
                     page_table[process.pages[i]][0]=(byte)(page_table[process.pages[i]][0]&127);
                     //将该的页面的分配标志位改为0
                 }
+                break;
             }
         }
     }
@@ -283,6 +286,11 @@ public class Os {
 
         memory_manage(process,1);//为进程分配页面
 
+        System.out.print(computer.clock.gettime()+"时刻|创建"+process.ProID+"号进程|分配页面号:");
+        for(int i=0;i<process.page_num;i++)
+            System.out.print(process.pages[i]+" ");
+        System.out.println("");
+
         process.ProState=2;//创建好的进程为就绪态
         process.PSW=0;//从进程的第1条指令开始执行
         process.intime=computer.clock.gettime();
@@ -292,6 +300,12 @@ public class Os {
     public void destroy(){//进程撤销原语
         memory_manage(q1.peek(),3);//收回该进程所占的内存空间
         q1.peek().outtime=computer.clock.gettime();//记录进程撤销时间
+
+        System.out.print(computer.clock.gettime()+"时刻|撤销"+q1.peek().ProID+"号进程|回收页面号:");
+        for(int i=0;i<q1.peek().page_num;i++)
+            System.out.print(q1.peek().pages[i]+" ");
+        System.out.println("");
+
         q4.offer(q1.poll());//将该进程放入已完成队列
         if(q2.size()!=0){
             q1.offer(q2.poll());
