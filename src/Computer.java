@@ -7,7 +7,7 @@ public class Computer {//裸机类
     private BUS bus;//总线
     public MMU mmu;//存储管理部件
     private Memory memory;//内存
-    private Disk disk;//硬盘
+    public Disk disk;//硬盘
 
     Computer(){//构造函数
         clock=new Clock();
@@ -127,13 +127,13 @@ class Memory{//内存类
 
 class Disk{//硬盘类
     public int disk[][]=new int[32][64];
-    //1 个磁道中有64个扇区，1个柱面中有32个磁道,1个扇区为1个物理块，每个物理块大小512B，合计1MB,非负表示被相应序号进程占用，-1表示该物理块空闲
+    //1 个磁道中有64个扇区，1个柱面中有32个磁道,1个扇区为1个物理块，每个物理块大小512B，合计1MB
+    //非负表示被相应序号的进程占用，-1表示空闲
 
     Disk(){
-        for(int i=0;i<32;i++){
+        for(int i=0;i<32;i++)
             for(int j=0;j<64;j++)
-                disk[i][j]=-1;
-        }
+                disk[i][j] = -1;
         File directory=new File(".");
         String path=null;
         try{
@@ -173,6 +173,44 @@ class Disk{//硬盘类
             }catch(IOException e){
                 e.printStackTrace();
             }
+        }
+    }
+
+    public void write(){
+        File directory=new File(".");
+        String path=null;
+        try{
+            path=directory.getCanonicalPath();
+        }catch(IOException e){
+            e.printStackTrace();
+        }
+        path+="\\disk";
+        String sonpath=null;
+        for(int i=0;i<32;i++){
+            sonpath=path+"\\track"+String.valueOf(i+1)+".txt";
+            File sonfile=new File(sonpath);
+            try{
+                FileOutputStream out=new FileOutputStream(sonfile);
+                PrintStream p=new PrintStream(out);
+                for(int j=0;j<64;j++) {
+                    p.print("扇区" + j + ":" );
+                    if(disk[i][j]==-1)
+                        p.println("空闲");
+                    else
+                        p.println(disk[i][j]+"号进程");
+                }
+                out.close();
+                p.close();
+            }catch(FileNotFoundException e){
+                e.printStackTrace();
+            }catch(IOException e){
+                e.printStackTrace();
+            }
+        }
+        for(int i=0;i<32;i++){
+            for(int j=0;j<64;j++)
+                System.out.print(disk[i][j]+" ");
+            System.out.println();
         }
     }
 }

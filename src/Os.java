@@ -30,7 +30,7 @@ public class Os {
     Queue<Process>q2=new LinkedList<Process>();//就绪队列
     Queue<Process>q3=new LinkedList<Process>();//阻塞队列
     Queue<Process>q4=new LinkedList<Process>();//已完成的进程
-    Queue<Process>q5=new LinkedList<Process>();//尚未分配完页面的进程
+    Queue<Process>q5=new LinkedList<Process>();//没有空闲页面导致尚未分配完页面需等待的进程
 
     Os(Computer computer){//构造函数
         this.computer=computer;
@@ -60,7 +60,10 @@ public class Os {
                 gui();
                 inter_flag = false;
                 computer.clock.notifyAll();
-                if (end_flag) break;
+                if (end_flag){
+                    computer.disk.write();
+                    break;
+                }
             }
         }
     }
@@ -80,6 +83,18 @@ public class Os {
                             if ((page_table[j][0] & 128) == 0) {//分配标志位为0
                                 page_table[j][0] = (byte) (page_table[j][0] | 128);//将分配标志位置1
                                 process.pages[i] = j;
+                                for(int k=0;k<32;k++){//在硬盘中开辟缓存区存储进程
+                                    boolean disk_flag=false;
+                                    for(int l=0;l<64;l++){
+                                        if(computer.disk.disk[k][l]==-1){
+                                            computer.disk.disk[k][l]=process.ProID;
+                                            disk_flag=true;
+                                            break;
+                                        }
+                                    }
+                                    if(disk_flag)
+                                        break;
+                                }
                                 flag = true;
                                 break;
                             }
