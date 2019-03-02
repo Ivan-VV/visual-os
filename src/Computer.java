@@ -1,3 +1,5 @@
+import java.io.*;
+
 public class Computer {//裸机类
     short page_table;//页表基址寄存器，存放页表基址
     public Clock clock;//时钟
@@ -124,6 +126,53 @@ class Memory{//内存类
 }
 
 class Disk{//硬盘类
-    public boolean disk[][]=new boolean[32][64];
-    //1 个磁道中有64个扇区，1个柱面中有32个磁道,1个扇区为1个物理块，每个物理块大小512B，合计1MB,true表示该物理块被占用，false表示该物理块空闲
+    public int disk[][]=new int[32][64];
+    //1 个磁道中有64个扇区，1个柱面中有32个磁道,1个扇区为1个物理块，每个物理块大小512B，合计1MB,非负表示被相应序号进程占用，-1表示该物理块空闲
+
+    Disk(){
+        for(int i=0;i<32;i++){
+            for(int j=0;j<64;j++)
+                disk[i][j]=-1;
+        }
+        File directory=new File(".");
+        String path=null;
+        try{
+            path=directory.getCanonicalPath();
+        }catch(IOException e){
+            e.printStackTrace();
+        }
+        path+="\\disk";
+        File file=new File(path);
+        if(!file.exists())
+            file.mkdir();
+        String sonpath=null;
+        for(int i=0;i<32;i++){
+            sonpath=path+"\\track"+String.valueOf(i+1)+".txt";
+            File sonfile=new File(sonpath);
+            if(!sonfile.exists()){
+                try {
+                    sonfile.createNewFile();
+                }catch(IOException e){
+                    e.printStackTrace();
+                }
+            }
+            try{
+                FileOutputStream out=new FileOutputStream(sonfile);
+                PrintStream p=new PrintStream(out);
+                for(int j=0;j<64;j++) {
+                    p.print("扇区" + j + ":" );
+                    if(disk[i][j]==-1)
+                        p.println("空闲");
+                    else
+                        p.println(disk[i][j]+"号进程");
+                }
+                out.close();
+                p.close();
+            }catch(FileNotFoundException e){
+                e.printStackTrace();
+            }catch(IOException e){
+                e.printStackTrace();
+            }
+        }
+    }
 }
