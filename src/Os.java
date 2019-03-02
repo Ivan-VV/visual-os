@@ -30,6 +30,7 @@ public class Os {
     Queue<Process>q2=new LinkedList<Process>();//就绪队列
     Queue<Process>q3=new LinkedList<Process>();//阻塞队列
     Queue<Process>q4=new LinkedList<Process>();//已完成的进程
+    Queue<Process>q5=new LinkedList<Process>();//尚未分配完页面的进程
 
     Os(Computer computer){//构造函数
         this.computer=computer;
@@ -71,42 +72,55 @@ public class Os {
         //mode=3，撤销进程时调用，回收进程所用内存和页面
         switch (mode){
             case 1: {
-                process.page_num = process.size % 512 == 0 ? process.size / 512 : process.size / 512 + 1;
-                //求出为应进程分配的页面数量
-                process.pages = new int[process.page_num];
+                boolean flag=true;
                 for (int i = 0; i < process.page_num; i++) {
-                    boolean flag = false;
-                    for (int j = 0; j < 128; j++) {//寻找尚未分配出去的页面
-                        if ((page_table[j][0] & 128) == 0) {//分配标志位为0
-                            page_table[j][0] = (byte) (page_table[j][0] | 128);//将分配标志位置1
-                            process.pages[i] = j;
-                            flag = true;
+                    if(process.pages[i]==-1) {//尚未分配页面
+                        flag = false;
+                        for (int j = 0; j < 128; j++) {//寻找尚未分配出去的页面
+                            if ((page_table[j][0] & 128) == 0) {//分配标志位为0
+                                page_table[j][0] = (byte) (page_table[j][0] | 128);//将分配标志位置1
+                                process.pages[i] = j;
+                                flag = true;
+                                break;
+                            }
+                        }
+                        if (flag == false) {
                             break;
                         }
-                    }
-                    if (flag == false) {
-                        System.out.println("没有空闲页面！");
-                        break;
                     }
                 }
-                for (int i = 0; i < process.page_num; i++) {
-                    boolean flag = false;
-                    for (int j = 0; j < 64; j++) {//寻找空闲的页框
-                        if (!memory_table[j]) {//该页框空闲
-                            page_table[process.pages[i]][0] = (byte) (page_table[process.pages[i]][0] | 64);
-                            //将页表项的驻留标志位改为1
-                            page_table[process.pages[i]][0] = (byte) (page_table[process.pages[i]][0] & 192);
-                            page_table[process.pages[i]][0] += (byte) j;
-                            //将页面所分得页框的页框号写入该页表项的2-7位
-                            memory_table[j] = true;//表示该页框已被占用
-                            flag = true;
+                if(flag==false){//没有空闲页面
+                    System.out.println("没有空闲页面！需等待其他进程执行完释放页面！");
+                    q5.offer(process);
+                }else {
+                    for (int i = 0; i < process.page_num; i++) {
+                        boolean mem_flag = false;
+                        for (int j = 0; j < 64; j++) {//寻找空闲的页框
+                            if (!memory_table[j]) {//该页框空闲
+                                page_table[process.pages[i]][0] = (byte) (page_table[process.pages[i]][0] | 64);
+                                //将页表项的驻留标志位改为1
+                                page_table[process.pages[i]][0] = (byte) (page_table[process.pages[i]][0] & 192);
+                                page_table[process.pages[i]][0] += (byte) j;
+                                //将页面所分得页框的页框号写入该页表项的2-7位
+                                memory_table[j] = true;//表示该页框已被占用
+                                mem_flag = true;
+                                break;
+                            }
+                        }
+                        if (mem_flag == false) {
+                            System.out.println("没有空闲页框！");
                             break;
                         }
                     }
-                    if (flag == false) {
-                        System.out.println("没有空闲页框！");
-                        break;
-                    }
+                    System.out.print(computer.clock.gettime()+"时刻|创建"+process.ProID+"号进程|分配页面号:");
+                    for(int i=0;i<process.page_num;i++)
+                        System.out.print(process.pages[i]+" ");
+                    System.out.println("");
+
+                    process.ProState=2;//创建好的进程为就绪态
+                    process.PSW=0;//从进程的第1条指令开始执行
+                    process.intime=computer.clock.gettime();
+                    q2.offer(process);//创建好的进程进入就绪队列
                 }
                 break;
             }
@@ -283,18 +297,13 @@ public class Os {
         process.size=task.size;
         process.data_size=task.data_size;
         process.stack=new Stack();
+        process.page_num = process.size % 512 == 0 ? process.size / 512 : process.size / 512 + 1;
+        //求出为应进程分配的页面数量
+        process.pages = new int[process.page_num];
+        for(int i=0;i<process.page_num;i++)
+            process.pages[i]=-1;
 
         memory_manage(process,1);//为进程分配页面
-
-        System.out.print(computer.clock.gettime()+"时刻|创建"+process.ProID+"号进程|分配页面号:");
-        for(int i=0;i<process.page_num;i++)
-            System.out.print(process.pages[i]+" ");
-        System.out.println("");
-
-        process.ProState=2;//创建好的进程为就绪态
-        process.PSW=0;//从进程的第1条指令开始执行
-        process.intime=computer.clock.gettime();
-        q2.offer(process);//创建好的进程进入就绪队列
     }
 
     public void destroy(){//进程撤销原语
@@ -307,6 +316,9 @@ public class Os {
         System.out.println("");
 
         q4.offer(q1.poll());//将该进程放入已完成队列
+        if(q5.size()!=0){//若有进程尚未分配页面
+            memory_manage(q5.poll(),1);
+        }
         if(q2.size()!=0){
             q1.offer(q2.poll());
             computer.cpu.PC=q1.peek().PSW;
@@ -400,6 +412,10 @@ public class Os {
         /*temp=q4;
         for(int i=0;i<temp.size();i++)
             System.out.print(temp.poll().ProID+" ");*/
+        System.out.print("|等待空闲页面进程:");
+        for(Process process:q5){
+            System.out.print(process.ProID+" ");
+        }
         System.out.println("");
     }
 
