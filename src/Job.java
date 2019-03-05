@@ -21,6 +21,7 @@ class Task{//任务类，一个作业可以分解为多个任务，每个任务�
     public int data_size;//任务的数据部分所需内存大小
     public int instrucnum;//任务包含的指令数目
     public Instruct instruc_list[];//任务包含的指令序列
+    public int syn_flag;//同步标志，-1表示不需要同步，非负表示需要和相应序号的进程同步
 
     Task(){
         size=0;
@@ -30,6 +31,14 @@ class Task{//任务类，一个作业可以分解为多个任务，每个任务�
             Instruct instruct=new Instruct();
             instruct.Instruc_ID=i;//指令序号
             instruct.Instruc_State=(int)(Math.random()*3);//每条指令类型为0或1或2，0表示系统调用，1表示用户态计算操作，2表示PV操作
+            if(instruct.Instruc_State==2){//如果是PV操作指令
+                instruct.all_sources=new int[5];
+                instruct.need_sources=new int[5];
+                for(int j=0;j<5;j++) {
+                    instruct.all_sources[j] = (int) (Math.random() * 6);
+                    instruct.need_sources[j]=instruct.all_sources[j];
+                }
+            }
             instruct.Instruct_Times=(5+(int)(Math.random()*6))*10;//每条指令运行时间为50ms-100ms，为10的倍数
             instruct.needtime=instruct.Instruct_Times;
             instruct.data_flag=(int)(Math.random()*2);//表示指令是否要访问数据，0不访问，1访问

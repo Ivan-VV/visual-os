@@ -1,3 +1,7 @@
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.PrintStream;
 import java.util.Queue;
 import java.util.Stack;
 import java.util.LinkedList;
@@ -25,6 +29,9 @@ public class Os {
     public boolean end_flag;//是否执行完所有作业，false为否，true为是
     private int instr_flag;//表示当前CPU正在执行的指令类型，0表示系统调用，1表示用户态计算操作，2表示PV操作
     private int pv_flag;//表示是否已有进程进行PV操作且未结束，-1表示无，非负表示占用临界资源的进程ID
+    private int pv_source[]=new int[5];
+    private int syn_flag;
+    private PrintStream log;//写系统日志
 
     Queue<Process>q1=new LinkedList<Process>();//运行队列（数量只能为1或0）
     Queue<Process>q2=new LinkedList<Process>();//就绪队列
@@ -45,9 +52,48 @@ public class Os {
         jobs=new Job[job_num];
         for(int i=0;i<job_num;i++)//初始化作业序列
             jobs[i]=new Job();
+
+        //随机生成需要进行同步的进程
+        for(int i=0;i<job_num;i++)
+            for (int j = 0; j < jobs[i].task_num; j++)
+                jobs[i].task_list[j].syn_flag=-1;
+        for(int i=0;i<job_num;i++){
+            if(jobs[i].task_num>=2){
+                int pro_i=0;
+                for(int j=0;j<i;j++)
+                    for(int k=0;k<jobs[j].task_num;k++)
+                        pro_i++;
+                jobs[i].task_list[1].syn_flag=pro_i;
+                jobs[i].task_list[0].syn_flag=pro_i+1;
+                syn_flag=pro_i;
+                break;
+            }
+        }
+
         block_flag=false;
         end_flag=false;
         pv_flag=-1;
+        for(int i=0;i<5;i++)
+            pv_source[i]=5;
+
+        //初始化日志输出流
+        File directory=new File(".");
+        String path=null;
+        try{
+            path=directory.getCanonicalPath();
+        }catch(IOException e){
+            e.printStackTrace();
+        }
+        path+="\\log.txt";
+        File logfile=new File(path);
+        try {
+            if (!logfile.exists())
+                logfile.createNewFile();
+            FileOutputStream out=new FileOutputStream(logfile);
+            log=new PrintStream(out);
+        }catch(IOException e){
+            e.printStackTrace();
+        }
     }
 
     public void osstart()throws InterruptedException{//启动操作系统
@@ -62,6 +108,7 @@ public class Os {
                 computer.clock.notifyAll();
                 if (end_flag){
                     computer.disk.write();
+                    log.close();
                     break;
                 }
             }
@@ -106,6 +153,7 @@ public class Os {
                 }
                 if(flag==false){//没有空闲页面
                     System.out.println("没有空闲页面！需等待其他进程执行完释放页面！");
+                    log.println("没有空闲页面！需等待其他进程执行完释放页面！");
                     q5.offer(process);
                 }else {
                     for (int i = 0; i < process.page_num; i++) {
@@ -124,10 +172,12 @@ public class Os {
                         }
                         if (mem_flag == false) {
                             System.out.println("没有空闲页框！");
+                            log.println("没有空闲页框！");
                             break;
                         }
                     }
                     System.out.print(computer.clock.gettime()+"时刻|创建"+process.ProID+"号进程|分配页面号:");
+                    log.print(computer.clock.gettime()+"时刻|创建"+process.ProID+"号进程|分配页面号:");
                     for(int i=0;i<process.page_num;i++)
                         System.out.print(process.pages[i]+" ");
                     System.out.println("");
@@ -232,36 +282,90 @@ public class Os {
                 if(computer.cpu.PC==q1.peek().instrucnum){//进程已执行完所有指令
                     destroy();//撤销进程
                 }else {
-                    memory_manage(q1.peek(),2);
-                    instr_flag = q1.peek().instruc_list[computer.cpu.PC].Instruc_State;
-                    if (instr_flag == 0) {//若执行的是系统调用指令
-                        q1.peek().instruc_list[computer.cpu.PC].needtime -= 10;
-                        if (q1.peek().instruc_list[computer.cpu.PC].needtime <= 0) {
-                            computer.cpu.PC++;
-                            run_ready();
-                        }
-                    } else if (instr_flag == 1) {//若执行的是用户态计算指令
-                        q1.peek().instruc_list[computer.cpu.PC].needtime -= 10;
-                        if (q1.peek().instruc_list[computer.cpu.PC].needtime <= 0)
-                            computer.cpu.PC++;
-                        int runtime = nowtime - q1.peek().starttime;
-                        if (runtime >= 500)//用完时间片
-                            run_ready();
-                    } else if (instr_flag == 2) {//若执行的是PV操作指令
-                        if (pv_flag == -1 || pv_flag == q1.peek().ProID) {//临界资源空闲
-                            if (pv_flag == -1) pv_flag = q1.peek().ProID;//将临界资源分配给该进程
+                    if (q1.peek().syn_flag == -1) {//若进程不需要同步
+                        memory_manage(q1.peek(), 2);
+                        instr_flag = q1.peek().instruc_list[computer.cpu.PC].Instruc_State;
+                        if (instr_flag == 0) {//若执行的是系统调用指令
                             q1.peek().instruc_list[computer.cpu.PC].needtime -= 10;
                             if (q1.peek().instruc_list[computer.cpu.PC].needtime <= 0) {
-                                pv_flag = -1;
-                                if (q3.size() != 0) wake();
                                 computer.cpu.PC++;
+                                q1.peek().PSW++;
+                                run_ready();
+                            }
+                        } else if (instr_flag == 1) {//若执行的是用户态计算指令
+                            q1.peek().instruc_list[computer.cpu.PC].needtime -= 10;
+                            if (q1.peek().instruc_list[computer.cpu.PC].needtime <= 0) {
+                                computer.cpu.PC++;
+                                q1.peek().PSW++;
                             }
                             int runtime = nowtime - q1.peek().starttime;
-                            if (runtime >= 500)
+                            if (runtime >= 500)//用完时间片
                                 run_ready();
-                        } else {//临界资源被占用
-                            run_wait();
+                        } else if (instr_flag == 2) {//若执行的是PV操作指令
+                            if (pv_flag == -1 || pv_flag == q1.peek().ProID) {//临界资源空闲
+                                if (pv_flag == -1) pv_flag = q1.peek().ProID;//将临界资源分配给该进程
+                                q1.peek().instruc_list[computer.cpu.PC].needtime -= 10;
+                                if (q1.peek().instruc_list[computer.cpu.PC].needtime <= 0) {
+                                    pv_flag = -1;
+                                    if (q3.size() != 0) wake();
+                                    computer.cpu.PC++;
+                                    q1.peek().PSW++;
+                                }
+                                int runtime = nowtime - q1.peek().starttime;
+                                if (runtime >= 500)
+                                    run_ready();
+                            } else {//临界资源被占用
+                                run_wait();
+                            }
                         }
+                    }else if (syn_flag == q1.peek().ProID) {//若进程需要同步但暂时不用阻塞
+                        memory_manage(q1.peek(), 2);
+                        instr_flag = q1.peek().instruc_list[computer.cpu.PC].Instruc_State;
+                        if (instr_flag == 0) {//若执行的是系统调用指令
+                            q1.peek().instruc_list[computer.cpu.PC].needtime -= 10;
+                            if (q1.peek().instruc_list[computer.cpu.PC].needtime <= 0) {
+                                if(computer.cpu.PC==q1.peek().instrucnum/2||computer.cpu.PC==q1.peek().instrucnum-1)
+                                    syn_flag=q1.peek().syn_flag;
+                                computer.cpu.PC++;
+                                q1.peek().PSW++;
+                                run_ready();
+                            }
+                        } else if (instr_flag == 1) {//若执行的是用户态计算指令
+                            q1.peek().instruc_list[computer.cpu.PC].needtime -= 10;
+                            if (q1.peek().instruc_list[computer.cpu.PC].needtime <= 0) {
+                                if(computer.cpu.PC==q1.peek().instrucnum/2||computer.cpu.PC==q1.peek().instrucnum-1)
+                                    syn_flag=q1.peek().syn_flag;
+                                computer.cpu.PC++;
+                                q1.peek().PSW++;
+                            }
+                            int runtime = nowtime - q1.peek().starttime;
+                            if (runtime >= 500)//用完时间片
+                                run_ready();
+                        } else if (instr_flag == 2) {//若执行的是PV操作指令
+                            if (pv_flag == -1 || pv_flag == q1.peek().ProID) {//临界资源空闲
+                                if (pv_flag == -1) pv_flag = q1.peek().ProID;//将临界资源分配给该进程
+                                q1.peek().instruc_list[computer.cpu.PC].needtime -= 10;
+                                if (q1.peek().instruc_list[computer.cpu.PC].needtime <= 0) {
+                                    if(computer.cpu.PC==q1.peek().instrucnum/2||computer.cpu.PC==q1.peek().instrucnum-1)
+                                        syn_flag=q1.peek().syn_flag;
+                                    pv_flag = -1;
+                                    if (q3.size() != 0) wake();
+                                    computer.cpu.PC++;
+                                    q1.peek().PSW++;
+                                }
+                                int runtime = nowtime - q1.peek().starttime;
+                                if (runtime >= 500)
+                                    run_ready();
+                            } else {//临界资源被占用
+                                run_wait();
+                            }
+                        }
+                    }else{
+                        System.out.println(computer.clock.gettime()+"时刻|"+q1.peek().ProID+"号进程需要和"+
+                                q1.peek().syn_flag+"号进程同步，暂停运行");
+                        log.println(computer.clock.gettime()+"时刻|"+q1.peek().ProID+"号进程需要和"+
+                                q1.peek().syn_flag+"号进程同步，暂停运行");
+                        run_ready();
                     }
                 }
             }else{//当前CPU空闲
@@ -303,7 +407,6 @@ public class Os {
         }
     }
 
-
     public void create(Task task){//进程创建原语
         Process process=new Process();
         process.ProID=Process.num++;
@@ -311,6 +414,7 @@ public class Os {
         process.instruc_list=task.instruc_list;
         process.size=task.size;
         process.data_size=task.data_size;
+        process.syn_flag=task.syn_flag;
         process.stack=new Stack();
         process.page_num = process.size % 512 == 0 ? process.size / 512 : process.size / 512 + 1;
         //求出为应进程分配的页面数量
@@ -326,9 +430,13 @@ public class Os {
         q1.peek().outtime=computer.clock.gettime();//记录进程撤销时间
 
         System.out.print(computer.clock.gettime()+"时刻|撤销"+q1.peek().ProID+"号进程|回收页面号:");
-        for(int i=0;i<q1.peek().page_num;i++)
-            System.out.print(q1.peek().pages[i]+" ");
+        log.print(computer.clock.gettime()+"时刻|撤销"+q1.peek().ProID+"号进程|回收页面号:");
+        for(int i=0;i<q1.peek().page_num;i++) {
+            System.out.print(q1.peek().pages[i] + " ");
+            log.print(q1.peek().pages[i] + " ");
+        }
         System.out.println("");
+        log.println("");
 
         q4.offer(q1.poll());//将该进程放入已完成队列
         if(q5.size()!=0){//若有进程尚未分配页面
@@ -401,59 +509,103 @@ public class Os {
     void gui(){//可视化显示
         /*Queue<Process>temp;*/
         System.out.print(computer.clock.gettime()+"时刻|运行队列:");
+        log.print(computer.clock.gettime()+"时刻|运行队列:");
         for(Process process:q1){
             System.out.print(process.ProID+" ");
+            log.print(process.ProID+" ");
         }
         /*for(int i=0;i<temp.size();i++)
             System.out.print(temp.poll().ProID+" ");*/
         System.out.print("|就绪队列:");
+        log.print("|就绪队列:");
         for(Process process:q2){
             System.out.print(process.ProID+" ");
+            log.print(process.ProID+" ");
         }
         /*temp=q2;
         for(int i=0;i<temp.size();i++)
             System.out.print(temp.poll().ProID+" ");*/
         System.out.print("|阻塞队列:");
+        log.print("|阻塞队列:");
         for(Process process:q3){
             System.out.print(process.ProID+" ");
+            log.print(process.ProID+" ");
         }
         /*temp=q3;
         for(int i=0;i<temp.size();i++)
             System.out.print(temp.poll().ProID+" ");*/
         System.out.print("|已完成进程:");
+        log.print("|已完成进程:");
         for(Process process:q4){
             System.out.print(process.ProID+" ");
+            log.print(process.ProID+" ");
         }
         /*temp=q4;
         for(int i=0;i<temp.size();i++)
             System.out.print(temp.poll().ProID+" ");*/
         System.out.print("|等待空闲页面进程:");
+        log.print("|等待空闲页面进程:");
         for(Process process:q5){
             System.out.print(process.ProID+" ");
+            log.print(process.ProID+" ");
         }
         System.out.println("");
+        log.println("");
     }
 
     void showjobs(){
         System.out.println("共有"+job_num+"个作业");
+        log.println("共有"+job_num+"个作业");
         int n=0;
         for(int i=0;i<job_num;i++){
             for(int j=0;j<jobs[i].task_num;j++)
                 n++;
         }
         System.out.println("共有"+n+"个进程");
+        log.println("共有"+n+"个进程");
         for(int i=0;i<job_num;i++){
             System.out.println("作业"+(i+1)+":  intime"+jobs[i].intime);
+            log.println("作业"+(i+1)+":  intime"+jobs[i].intime);
             for(int j=0;j<jobs[i].task_num;j++){
                 System.out.println("进程"+(j+1)+":  指令数目"+jobs[i].task_list[j].instrucnum
                 +"  所需内存"+jobs[i].task_list[j].size);
+                log.println("进程"+(j+1)+":  指令数目"+jobs[i].task_list[j].instrucnum
+                        +"  所需内存"+jobs[i].task_list[j].size);
                 for(int k=0;k<jobs[i].task_list[j].instrucnum;k++){
                     System.out.println("ID"+jobs[i].task_list[j].instruc_list[k].Instruc_ID
                     +"  类型"+jobs[i].task_list[j].instruc_list[k].Instruc_State+"  运行时间"
                     +jobs[i].task_list[j].instruc_list[k].Instruct_Times+"  访问数据"
                     +jobs[i].task_list[j].instruc_list[k].data_flag);
+                    log.println("ID"+jobs[i].task_list[j].instruc_list[k].Instruc_ID
+                            +"  类型"+jobs[i].task_list[j].instruc_list[k].Instruc_State+"  运行时间"
+                            +jobs[i].task_list[j].instruc_list[k].Instruct_Times+"  访问数据"
+                            +jobs[i].task_list[j].instruc_list[k].data_flag);
                 }
             }
         }
+    }
+
+    int get_psw(int pro_id){
+        for(Process process:q1){
+            if(process.ProID==pro_id)
+                return process.PSW;
+        }
+        for(Process process:q2){
+            if(process.ProID==pro_id)
+                return process.PSW;
+        }
+        for(Process process:q3){
+            if(process.ProID==pro_id)
+                return process.PSW;
+        }
+        for(Process process:q4){
+            if(process.ProID==pro_id)
+                return process.PSW;
+        }
+        for(Process process:q5){
+            if(process.ProID==pro_id)
+                return process.PSW;
+        }
+        return -1;
     }
 }
