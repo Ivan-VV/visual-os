@@ -32,6 +32,7 @@ public class Os {
     private int pv_source[]=new int[5];
     private int syn_flag;
     private PrintStream log;//写系统日志
+    private PrintStream memory_log;//写内存占用情况日志
 
     Queue<Process>q1=new LinkedList<Process>();//运行队列（数量只能为1或0）
     Queue<Process>q2=new LinkedList<Process>();//就绪队列
@@ -79,18 +80,26 @@ public class Os {
         //初始化日志输出流
         File directory=new File(".");
         String path=null;
+        String memory_path=null;
         try{
             path=directory.getCanonicalPath();
         }catch(IOException e){
             e.printStackTrace();
         }
-        path+="\\log.txt";
+        memory_path=path;
+        path+="\\run_log.txt";
+        memory_path+="\\memory_log.txt";
         File logfile=new File(path);
+        File memory_logfile=new File(memory_path);
         try {
             if (!logfile.exists())
                 logfile.createNewFile();
+            if(!memory_logfile.exists())
+                memory_logfile.createNewFile();
             FileOutputStream out=new FileOutputStream(logfile);
             log=new PrintStream(out);
+            FileOutputStream memory_out=new FileOutputStream(memory_logfile);
+            memory_log=new PrintStream(memory_out);
         }catch(IOException e){
             e.printStackTrace();
         }
@@ -629,76 +638,79 @@ public class Os {
     }
 
     void show_memory(){
-        if(!(q1.size()==0&&q2.size()==0&&q3.size()==0&&q5.size()==0)) {
-            System.out.println(computer.clock.gettime() + "时刻|各进程内存占用情况");
-            log.println(computer.clock.gettime() + "时刻|各进程内存占用情况{");
+        System.out.println(computer.clock.gettime() + "时刻|各进程占用内存情况");
+        memory_log.println(computer.clock.gettime() + "时刻|各进程占用情况");
+        System.out.println("{");
+        memory_log.println("{");
 
-            for (Process process : q1) {
-                System.out.print(process.ProID + "号进程分配页面号:");
-                log.print(process.ProID + "号进程分配页面号:");
-                for (int page : process.pages) {
-                    System.out.print(page);
-                    log.print(page);
-                    if ((page_table[page][0] & 64) == 0) {
-                        System.out.print("(不在内存)");
-                        log.print("(不在内存)");
-                    } else {
-                        int i = page_table[page][0] & 63;
-                        System.out.print("(页框号" + i + ")");
-                        log.print("(页框号" + i + ")");
-                    }
-                    System.out.print("  ");
-                    log.print("  ");
+        for (Process process : q1) {
+            System.out.print(process.ProID + "号进程分配页面号:");
+            memory_log.print(process.ProID + "号进程分配页面号:");
+            for (int page : process.pages) {
+                System.out.print(page);
+                memory_log.print(page);
+                if ((page_table[page][0] & 64) == 0) {
+                    System.out.print("(不在内存)");
+                    memory_log.print("(不在内存)");
+                } else {
+                    int i = page_table[page][0] & 63;
+                    System.out.print("(页框号" + i + ")");
+                    memory_log.print("(页框号" + i + ")");
                 }
-                System.out.println();
-                log.println();
+                System.out.print("  ");
+                memory_log.print("  ");
             }
 
-            for (Process process : q2) {
-                System.out.print(process.ProID + "号进程分配页面号:");
-                log.print(process.ProID + "号进程分配页面号:");
-                for (int page : process.pages) {
-                    System.out.print(page);
-                    log.print(page);
-                    if ((page_table[page][0] & 64) == 0) {
-                        System.out.print("(不在内存)");
-                        log.print("(不在内存)");
-                    } else {
-                        int i = page_table[page][0] & 63;
-                        System.out.print("(页框号" + i + ")");
-                        log.print("(页框号" + i + ")");
-                    }
-                    System.out.print("  ");
-                    log.print("  ");
-                }
-                System.out.println();
-                log.println();
-            }
-
-            for (Process process : q3) {
-                System.out.print(process.ProID + "号进程分配页面号:");
-                log.print(process.ProID + "号进程分配页面号:");
-                for (int page : process.pages) {
-                    System.out.print(page);
-                    log.print(page);
-                    if ((page_table[page][0] & 64) == 0) {
-                        System.out.print("(不在内存)");
-                        log.print("(不在内存)");
-                    } else {
-                        int i = page_table[page][0] & 63;
-                        System.out.print("(页框号" + i + ")");
-                        log.print("(页框号" + i + ")");
-                    }
-                    System.out.print("  ");
-                    log.print("  ");
-                }
-                System.out.println();
-                log.println();
-            }
-
-            System.out.println("}");
-            log.println("}");
+            System.out.println();
+            memory_log.println();
         }
+
+        for (Process process : q2) {
+            System.out.print(process.ProID + "号进程分配页面号:");
+            memory_log.print(process.ProID + "号进程分配页面号:");
+            for (int page : process.pages) {
+                System.out.print(page);
+                memory_log.print(page);
+                if ((page_table[page][0] & 64) == 0) {
+                    System.out.print("(不在内存)");
+                    memory_log.print("(不在内存)");
+                } else {
+                    int i = page_table[page][0] & 63;
+                    System.out.print("(页框号" + i + ")");
+                    memory_log.print("(页框号" + i + ")");
+                }
+                System.out.print("  ");
+                memory_log.print("  ");
+            }
+
+            System.out.println();
+            memory_log.println();
+        }
+
+        for (Process process : q3) {
+            System.out.print(process.ProID + "号进程分配页面号:");
+            memory_log.print(process.ProID + "号进程分配页面号:");
+            for (int page : process.pages) {
+                System.out.print(page);
+                memory_log.print(page);
+                if ((page_table[page][0] & 64) == 0) {
+                    System.out.print("(不在内存)");
+                    memory_log.print("(不在内存)");
+                } else {
+                    int i = page_table[page][0] & 63;
+                    System.out.print("(页框号" + i + ")");
+                    memory_log.print("(页框号" + i + ")");
+                }
+                System.out.print("  ");
+                memory_log.print("  ");
+            }
+
+            System.out.println();
+            memory_log.println();
+        }
+
+        System.out.println("}");
+        memory_log.println("}");
     }
 
     int get_psw(int pro_id){
