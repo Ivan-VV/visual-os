@@ -52,6 +52,7 @@ public class Computer {//裸机类
         private int []PSW=new int [2];//指令状态字寄存器
         private int cpu_state;//CPU状态，表示内核态，1表示用户态
 
+        /*
         public void cpu_run(Os os){
             for(;;) {
                 if (os.q1.size() != 0) {
@@ -61,7 +62,7 @@ public class Computer {//裸机类
                     os.q1.peek().instruc_list[PC].starttime = clock.gettime();
                 }
             }
-        }
+        }*/
     }
 
     public static void main(String []Args){

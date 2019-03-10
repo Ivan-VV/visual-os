@@ -3,7 +3,7 @@ import java.util.Stack;
 public class Process {//进程类
     static int num=0;//当前生成PCB的序号，从0开始
     int ProID;//进程序号
-    int ProState;//1为运行态，2为就绪态，3为等待态
+    int ProState;//1为运行态，2为就绪态，3为阻塞态，4为等待分配页面，5为已完成，6位已撤销
     int instrucnum;//进程的指令数目
     Instruct instruc_list[];//进程包含的指令序列
     int size;//进程所需内存大小
@@ -15,6 +15,10 @@ public class Process {//进程类
     int outtime;//进程销毁时间
     int starttime;//进程开始占据CPU时间
     public int syn_flag;//同步标志，-1表示不需要同步，非负表示需要和相应序号的进程同步
+    public boolean resource_flag;//进程是否需要资源，false为否，true为是
+    public int all_resources[];//进程需要的资源
+    public int need_resources[];//进程还需要的资源
+    public int alloctate_flag;//表示进程已经分配了几次资源
     Stack stack;//线程绑定的栈，用来进行现场保护
 
     /*public static Process create(Os os,Task task){//进程创建原语
