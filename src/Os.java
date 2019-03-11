@@ -214,6 +214,10 @@ public class Os {
                             q2.offer(process);
                         } else{
                             process.ProState=3;//资源不够分配，进程为阻塞态
+                            System.out.println(computer.clock.gettime()+"时刻|"+process.ProID+"号进程请求分配资源失败，" +
+                                    "进入等待分配资源队列");
+                            log.println(computer.clock.gettime()+"时刻|"+process.ProID+"号进程请求分配资源失败，" +
+                                    "进入等待分配资源队列");
                             q_re.offer(process);//进程被阻塞
                         }
                     }else {//如果进程不需要分配资源
@@ -443,6 +447,10 @@ public class Os {
                     }
                 }else{//进程需要分配资源且分配资源失败
                     q1.peek().ProState=3;//进程为阻塞态
+                    System.out.println(computer.clock.gettime()+"时刻|"+q1.peek().ProID+"号进程请求分配资源失败，" +
+                            "进入等待分配资源队列");
+                    log.println(computer.clock.gettime()+"时刻|"+q1.peek().ProID+"号进程请求分配资源失败，" +
+                            "进入等待分配资源队列");
                     q_re.offer(q1.poll());//进程被阻塞
                     if(q2.size()!=0){
                         q1.offer(q2.poll());
@@ -591,6 +599,17 @@ public class Os {
 
     boolean allocate(Process process){//为进程分配资源，若资源足够则分配成功，返回true，资源不够则分配失败，返回false
         if(process.alloctate_flag==0){//如果进程尚未分配过资源
+            System.out.print(computer.clock.gettime()+"时刻|"+process.ProID+"号进程申请资源:");
+            log.print(computer.clock.gettime()+"时刻|"+process.ProID+"号进程申请资源:");
+            System.out.print("A"+process.need_resources[0]/2+",B"+process.need_resources[1]/2+",C"+process.need_resources[2]/2+
+                    ",D"+process.need_resources[3]/2+ ",E"+process.need_resources[4]/2);
+            log.print("A"+process.need_resources[0]/2+",B"+process.need_resources[1]/2+",C"+process.need_resources[2]/2+
+                    ",D"+process.need_resources[3]/2+ ",E"+process.need_resources[4]/2);
+            System.out.println();
+            log.println();
+
+            System.out.print(computer.clock.gettime()+"时刻|为"+process.ProID+"号进程分配资源:");
+            log.print(computer.clock.gettime()+"时刻|为"+process.ProID+"号进程分配资源:");
             for(int i=0;i<5;i++){
                 int n=process.need_resources[i]/2;
                 if(resource_num[i]>=n){//如果剩余资源数量足够
@@ -605,14 +624,31 @@ public class Os {
                     }
                     resource_num[i]-=n;
                     process.need_resources[i]-=n;
+                    System.out.print((char)(i+65)+":"+n+" ");
+                    log.print((char)(i+65)+":"+n+" ");
                 }else{//如果剩余资源不够
+                    System.out.println();
+                    log.println();
                     return false;
                 }
             }
             //资源分配成功
+            System.out.println();
+            log.println();
             process.alloctate_flag=1;
             return true;
         }else{//如果进程已经分配过资源
+            System.out.print(computer.clock.gettime()+"时刻|"+process.ProID+"号进程申请资源:");
+            log.print(computer.clock.gettime()+"时刻|"+process.ProID+"号进程申请资源:");
+            System.out.print("A"+process.need_resources[0]+",B"+process.need_resources[1]+",C"+process.need_resources[2]+
+                    ",D"+process.need_resources[3]+ ",E"+process.need_resources[4]);
+            log.print("A"+process.need_resources[0]+",B"+process.need_resources[1]+",C"+process.need_resources[2]+
+                    ",D"+process.need_resources[3]+ ",E"+process.need_resources[4]);
+            System.out.println();
+            log.println();
+
+            System.out.print(computer.clock.gettime()+"时刻|为"+process.ProID+"号进程分配资源:");
+            log.print(computer.clock.gettime()+"时刻|为"+process.ProID+"号进程分配资源:");
             for(int i=0;i<5;i++){
                 int n=process.need_resources[i];
                 if(resource_num[i]>=n){//如果剩余资源数量足够
@@ -627,11 +663,17 @@ public class Os {
                     }
                     resource_num[i]-=n;
                     process.need_resources[i]-=n;
+                    System.out.print((char)(i+65)+":"+n+" ");
+                    log.print((char)(i+65)+":"+n+" ");
                 }else{//如果剩余资源不够
+                    System.out.println();
+                    log.println();
                     return false;
                 }
             }
             //资源分配成功
+            System.out.println();
+            log.println();
             process.alloctate_flag=1;
             return true;
         }
@@ -644,7 +686,7 @@ public class Os {
                     if(resources[i][j]==process.ProID)//如果该资源被该进程所占用
                         resources[i][j]=-1;
                 }
-                resource_num[i]+=process.all_resources[i];
+                resource_num[i]+=process.all_resources[i]-process.need_resources[i];
             }
         }
     }
@@ -716,8 +758,14 @@ public class Os {
                 }
             }
             q3.removeAll(list_remove);//撤销产生死锁的进程
-            for(Process process:list_remove)
+            for(Process process:list_remove) {
+                if(pv_flag==process.ProID){
+                    pv_flag=1;
+                    if(!q3.isEmpty())
+                        wake();
+                }
                 lock_destroy(process);
+            }
 
             list_remove.clear();
             for(Process process:q2){
@@ -758,8 +806,14 @@ public class Os {
                 }
             }
             q_re.removeAll(list_remove);//撤销产生死锁的进程
-            for(Process process:list_remove)
+            for(Process process:list_remove) {
+                if(pv_flag==process.ProID){
+                    pv_flag=1;
+                    if(!q3.isEmpty())
+                        wake();
+                }
                 lock_destroy(process);
+            }
         }
     }
 
@@ -871,6 +925,13 @@ public class Os {
             log.print(process.ProID+" ");
         }
 
+        System.out.print("|当前系统资源:");
+        log.print("|当前系统资源:");
+        System.out.print("A"+resource_num[0]+",B"+resource_num[1]+",C"+resource_num[2]+",D"+resource_num[3]+
+                ",E"+resource_num[4]);
+        log.print("A"+resource_num[0]+",B"+resource_num[1]+",C"+resource_num[2]+",D"+resource_num[3]+
+                ",E"+resource_num[4]);
+
         System.out.println("");
         log.println("");
     }
@@ -918,7 +979,7 @@ public class Os {
 
     void show_memory(){
         System.out.println(computer.clock.gettime() + "时刻|各进程占用内存情况");
-        memory_log.println(computer.clock.gettime() + "时刻|各进程占用情况");
+        memory_log.println(computer.clock.gettime() + "时刻|各进程占用内存情况");
         System.out.println("{");
         memory_log.println("{");
 
