@@ -50,7 +50,6 @@ public class Computer {//裸机类
         os.setUI_1();
 
         new Thread(){//启动时钟
-
             public void run(){
                 try {
                     clock.clockstart(os);
@@ -60,7 +59,6 @@ public class Computer {//裸机类
                     e.printStackTrace();
                 }
             }
-
         }.start();
         new Thread(){//操作系统等待时钟中断进行调度
 
@@ -115,20 +113,10 @@ public class Computer {//裸机类
 
     }
 
-
-
     public static void main(String []Args){
-
         Computer computer=new Computer();
-
-
     }
-
-
-
 }
-
-
 
 class Clock{//时钟类
 

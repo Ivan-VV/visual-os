@@ -112,7 +112,7 @@ public class Os extends JFrame {
 
 
     Os(Computer computer){//构造函数
-        super("黎远啵啵啵哦啵啵啵的任务管理器");
+        super("王小石石石石石石石石的任务管理器");
 
         this.computer=computer;
         inter_flag=false;
@@ -377,7 +377,7 @@ public class Os extends JFrame {
         deadLoc_area.setFont(new Font("黑体",Font.BOLD,20));//死锁文本域字体设置
         resource_area.setFont(new Font("黑体",Font.BOLD,25));//资源文本域字体设置
         syn_area.setFont(new Font("隶书",Font.BOLD,25));//同步文本域字体设置
-        mutex_area.setFont(new Font("隶书",Font.BOLD,25));//互斥文本域字体设置
+        mutex_area.setFont(new Font("隶书",Font.BOLD,16));//互斥文本域字体设置
         deadLoc_area.setEnabled(false);
         resource_area.setEnabled(false);
         syn_area.setEnabled(false);
@@ -770,9 +770,6 @@ public class Os extends JFrame {
     }
 
 
-
-
-
     public void cpu_manage(){//处理器管理，时间片为500ms
         int nowtime=computer.clock.gettime();
         if(nowtime%1000==0)page_use_move();//每过1000ms将每个在内存中页面的引用计数器右移1位
@@ -1120,13 +1117,16 @@ public class Os extends JFrame {
                 }
 
             }
-
+            /*if(q1.size()!=0&&q1.peek().ProID==1)
+                deadLoc_area.append(String.valueOf(pv_flag)+"   "+String.valueOf(q1.peek().PSW)+
+                        "  "+String.valueOf(computer.cpu.PC)+"\n");
+            if(pv_flag==-1&&q3.size()!=0)//如果互斥信号量没有被占用且有进程在阻塞
+                wake();*/
             deadlock();//死锁检测与撤销
 
         }
 
     }
-
 
 
     private void run_ready(){
@@ -1164,7 +1164,6 @@ public class Os extends JFrame {
     }
 
 
-
     private void run_wait(){
 
         q1.peek().PSW=computer.cpu.PC;
@@ -1198,7 +1197,6 @@ public class Os extends JFrame {
     }
 
 
-
     public void create(Task task){//进程创建原语
 
         Process process=new Process();
@@ -1224,7 +1222,6 @@ public class Os extends JFrame {
         memory_manage(process,1);//为进程分配页面
 
     }
-
 
 
     public void destroy(){//进程撤销原语
@@ -1308,7 +1305,6 @@ public class Os extends JFrame {
     }
 
 
-
     public void lock_destroy(Process process){//因为造成死锁而撤销进程
 
         memory_manage(process,3);//收回该进程所占的内存空间
@@ -1359,10 +1355,15 @@ public class Os extends JFrame {
 
         log.println();
 
+        /*if(pv_flag==process.ProID) {
+            pv_flag = -1;
+            mutex_area.append(computer.clock.gettime()+"时刻|"+process.ProID+"号进程释放互斥信号量\n");
+            if(q3.size()!=0)
+                wake();
+        }*/
         q6.offer(process);//进程加入已撤销队列
 
     }
-
 
 
     public void block(Process process){//进程阻塞原语
@@ -1372,7 +1373,6 @@ public class Os extends JFrame {
     }
 
 
-
     public void wake(){//进程唤醒原语
 
         q3.peek().ProState=2;//进程变为就绪态
@@ -1380,7 +1380,6 @@ public class Os extends JFrame {
         q2.offer(q3.poll());
 
     }
-
 
 
     boolean allocate(Process process){//为进程分配资源，若资源足够则分配成功，返回true，资源不够则分配失败，返回false
@@ -1532,7 +1531,6 @@ public class Os extends JFrame {
     }
 
 
-
     void recycle(Process process){//回收进程所占资源
 
         for(int i=0;i<5;i++){
@@ -1554,7 +1552,6 @@ public class Os extends JFrame {
         }
 
     }
-
 
 
     void deadlock(){//死锁检测与撤销
@@ -1747,7 +1744,7 @@ public class Os extends JFrame {
 
                 if(pv_flag==process.ProID){
 
-                    pv_flag=1;
+                    pv_flag=-1;
 
                     if(!q3.isEmpty())
 
@@ -1782,7 +1779,6 @@ public class Os extends JFrame {
         }
 
     }
-
 
 
     void page_in(int page){//将页面号为page的页面装入，采用LRU算法
@@ -1862,7 +1858,6 @@ public class Os extends JFrame {
     }
 
 
-
     void page_use_move(){//每过1000ms将每个在内存中页面的引用计数器右移1位，在cpu_manage中调用
 
         for(int i=0;i<128;i++){
@@ -1880,7 +1875,6 @@ public class Os extends JFrame {
         }
 
     }
-
 
 
     void gui(){//可视化显示
@@ -2140,7 +2134,6 @@ public class Os extends JFrame {
     }
 
 
-
     void showjobs(){
         System.out.println("共有"+job_num+"个作业");
         log.println("共有"+job_num+"个作业");
@@ -2194,7 +2187,6 @@ public class Os extends JFrame {
             }
         }
     }
-
 
 
     void show_memory(){
@@ -2498,7 +2490,7 @@ public class Os extends JFrame {
         }
     }
 
-    boolean mode_run(int mode){
+    boolean mode_run(int mode){//加在开始按钮的监听中，根据用户的选择来以随机生成或读写文件方式来启动系统
         switch (mode){
             case 1: {//随机生成作业
                 job_num = 5 + (int) (Math.random() * 6);//随机生成5-10个作业
