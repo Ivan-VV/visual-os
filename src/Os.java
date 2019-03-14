@@ -19,6 +19,7 @@ public class Os extends JFrame {
     private JPanel panel2=new JPanel(new BorderLayout());//图形界面二
     private JPanel panel3=new JPanel(new BorderLayout());//图形界面三
     private JPanel panel4=new JPanel(new BorderLayout());//图形界面四
+    private JPanel panel5=new JPanel(new BorderLayout());//图形界面五
 
     private JPanel panel_2=new JPanel(new FlowLayout());//展示不同硬件的详情new GridLayout(1,4)
     private JPanel panel_21=new JPanel(new GridLayout(2,1));//图形界面二的两个详情界面
@@ -31,8 +32,10 @@ public class Os extends JFrame {
     private JPanel panel_32=new JPanel(new FlowLayout());
 
     private JTextArea txt=new JTextArea(80000,700);//进程详细文本域
-    private JLabel cpu_bel=new JLabel("CPU： ");//CPU占用情况
+    private JLabel cpu_bel=new JLabel("CPU: ");//CPU占用情况
     private JTextField cpu_field=new JTextField(10);
+    private JLabel instr_bel=new JLabel("指令:");//指令执行情况
+    private JTextField instr_field=new JTextField(25);
 
     private JLabel time_bel2=new JLabel("时间计时：",JLabel.RIGHT);//JLable相对于输入框的位置
 
@@ -70,6 +73,10 @@ public class Os extends JFrame {
    // private JComboBox dropBox;//定义下拉框
     private JTable table;
     private JTable memoryTabel;
+
+    private JLabel page_short_label =new JLabel("缺页中断",JLabel.CENTER);
+    private JTextArea page_short_txt=new JTextArea(80000,500);//缺页中断
+    private JScrollPane page_short_scroll;
 
     private Computer computer;//操作系统管理的裸机
 
@@ -112,7 +119,7 @@ public class Os extends JFrame {
 
 
     Os(Computer computer){//构造函数
-        super("王小石石石石石石石石的任务管理器");
+        super("操作系统");
 
         this.computer=computer;
         inter_flag=false;
@@ -213,14 +220,17 @@ public class Os extends JFrame {
         tp.add(panel1);
         tp.add(panel2);
         tp.add(panel4);
+        tp.add(panel5);
         tp.setTitleAt(0,"调度过程");//设置宽度
         tp.setTitleAt(1,"进程信息");
         tp.setTitleAt(2,"资源、死锁、同步与互斥");
         tp.setTitleAt(3,"内存");
+        tp.setTitleAt(4,"缺页中断");
         tp.setSize(100,200);
         setUI_2();
         setUI_3();
         setUI_4();
+        setUI_5();
         setContentPane(tp);
         setLocationRelativeTo(null);
         setVisible(true);
@@ -415,7 +425,11 @@ public class Os extends JFrame {
         cpu_field.setFont(new Font("黑体",Font.BOLD,25));
         cpu_bel.setFont(new Font("小篆",Font.PLAIN,20));
         cpu_field.setHorizontalAlignment(JTextField.CENTER);
-        panel_32.add(cpu_bel);panel_32.add(cpu_field);
+        instr_bel.setFont(new Font("小篆",Font.PLAIN,20));
+        instr_field.setEnabled(false);
+        instr_field.setFont(new Font("黑体",Font.BOLD,12));
+        instr_field.setHorizontalAlignment(JTextField.CENTER);
+        panel_32.add(cpu_bel);panel_32.add(cpu_field);panel_32.add(instr_bel);panel_32.add(instr_field);
     }
 
 
@@ -472,6 +486,18 @@ public class Os extends JFrame {
         panel4.add(scrollPane_4,BorderLayout.CENTER);
     }
 
+    void setUI_5(){
+        page_short_scroll=new JScrollPane(page_short_txt);
+        page_short_scroll.setHorizontalScrollBarPolicy(//设置水平滚动天总是隐藏
+                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        page_short_txt.setEnabled(false);
+        page_short_txt.setFont(new Font("隶书",Font.BOLD,22));
+        page_short_label.setFont(new Font("楷书",Font.BOLD,25));
+        page_short_label.setForeground(Color.RED);
+        panel5.add(page_short_label,BorderLayout.NORTH);
+        panel5.add(page_short_scroll,BorderLayout.CENTER);
+    }
+
     public void osstart()throws InterruptedException{//启动操作系统
         for(;;){
             synchronized (computer.clock) {
@@ -502,6 +528,7 @@ public class Os extends JFrame {
         //mode=2，开始执行进程时调用，每执行一条指令也要调用一次确保将执行到的指令所在页面和进程所需数据所在页面装入内存，
         //        并将逻辑地址转换为物理地址
         //mode=3，撤销进程时调用，回收进程所用内存和页面
+        //mode=4，输出进程执行到指令的物理地址和要访问的数据区的物理地址
 
         switch (mode){
             case 1: {
@@ -765,6 +792,56 @@ public class Os extends JFrame {
                 break;
             }
 
+            case 4: {
+                int instr_add = process.PSW * 2;//当前执行到指令的逻辑地址
+                int instr_page_num = instr_add / 512;//当前执行到指令的逻辑地址所在该进程分得的第几个页面
+                int page_shift = instr_add % 512;//当前执行到指令的地址页内偏移
+                int instr_page = process.pages[instr_page_num];//当前执行到指令的逻辑地址所在页面号
+                int memory_num = (page_table[instr_page][0] & 63);//求出当前执行到指令的逻辑地址所在页面装入的页框号
+                int phy_add = memory_num * 512 + page_shift;//求出当前执行到指令的物理地址
+                System.out.print("(物理地址" + phy_add + ")");
+                log.print("(物理地址" + phy_add + ")");
+                txt.append("(物理地址" + phy_add + ")");
+                instr_field.setText(instr_field.getText()+"(物理地址" + phy_add + ")");
+                if (process.instruc_list[process.PSW].data_flag == 1) {//若当前执行到的指令要访问数据区
+                    int data_add_s = process.instrucnum * 2;//进程的数据区的起始逻辑地址
+                    int data_add_e = process.data_size + data_add_s - 1;//进程的数据区的结束逻辑地址
+                    int data_page_s = data_add_s / 512;//进程的数据区起始所在该进程分得的第几个页面
+                    int data_page_e = data_add_e / 512;//进程的数据区结束所在该进程分得的第几个页面
+                    System.out.print("(需要访问数据区:");
+                    log.print("(需要访问数据区:");
+                    txt.append("(需要访问数据区:");
+                    for(int i=data_page_s;i<=data_page_e;i++){//遍历进程数据区分得的所有页面
+                        if(i==data_page_s){
+                            int shift=data_add_s%512;
+                            int memory_data_num=(page_table[process.pages[i]][0]&63);//该页面装入的页框号
+                            int phy_data_add_s=memory_data_num*512+shift;//求出起始物理地址
+                            int phy_data_add_e=memory_data_num*512+511;//求出结束物理地址
+                            System.out.print(phy_data_add_s+"-"+phy_data_add_e+" ");
+                            log.print(phy_data_add_s+"-"+phy_data_add_e+" ");
+                            txt.append(phy_data_add_s+"-"+phy_data_add_e+" ");
+                        }else if(i==data_page_e){
+                            int shift=data_add_e%512;
+                            int memory_data_num=(page_table[process.pages[i]][0]&63);//该页面装入的页框号
+                            int phy_data_add_s=memory_data_num*512;//求出起始物理地址
+                            int phy_data_add_e=memory_data_num*512+shift;//求出结束物理地址
+                            System.out.print(phy_data_add_s+"-"+phy_data_add_e+" ");
+                            log.print(phy_data_add_s+"-"+phy_data_add_e+" ");
+                            txt.append(phy_data_add_s+"-"+phy_data_add_e+" ");
+                        }else{
+                            int memory_data_num=(page_table[process.pages[i]][0]&63);//该页面装入的页框号
+                            int phy_data_add_s=memory_data_num*512;//求出起始物理地址
+                            int phy_data_add_e=memory_data_num*512+511;//求出结束物理地址
+                            System.out.print(phy_data_add_s+"-"+phy_data_add_e+" ");
+                            log.print(phy_data_add_s+"-"+phy_data_add_e+" ");
+                            txt.append(phy_data_add_s+"-"+phy_data_add_e+" ");
+                        }
+                    }
+                    System.out.print(")");
+                    log.print(")");
+                    txt.append(")");
+                }
+            }
         }
 
     }
@@ -811,15 +888,16 @@ public class Os extends JFrame {
                             instr_flag = q1.peek().instruc_list[computer.cpu.PC].Instruc_State;
 
                             System.out.print(computer.clock.gettime() + "时刻|执行" + q1.peek().ProID +
-
-                                    "号进程" + computer.cpu.PC + "号指令——");
-
+                                    "号进程" + computer.cpu.PC + "号指令");
                             log.print(computer.clock.gettime() + "时刻|执行" + q1.peek().ProID +
-
-                                    "号进程" + computer.cpu.PC + "号指令——");
+                                    "号进程" + computer.cpu.PC + "号指令");
                             txt.append(computer.clock.gettime() + "时刻|执行" + q1.peek().ProID +
-
-                                    "号进程" + computer.cpu.PC + "号指令——");
+                                    "号进程" + computer.cpu.PC + "号指令");
+                            instr_field.setText(computer.cpu.PC + "号指令");
+                            memory_manage(q1.peek(),4);
+                            System.out.print("——");
+                            log.print("——");
+                            txt.append("——");
 
                             if (instr_flag == 0) {//若执行的是系统调用指令
 
@@ -935,15 +1013,16 @@ public class Os extends JFrame {
                             instr_flag = q1.peek().instruc_list[computer.cpu.PC].Instruc_State;
 
                             System.out.print(computer.clock.gettime() + "时刻|执行" + q1.peek().ProID +
-
-                                    "号进程" + computer.cpu.PC + "号指令——");
-
+                                    "号进程" + computer.cpu.PC + "号指令");
                             log.print(computer.clock.gettime() + "时刻|执行" + q1.peek().ProID +
-
-                                    "号进程" + computer.cpu.PC + "号指令——");
+                                    "号进程" + computer.cpu.PC + "号指令");
                             txt.append(computer.clock.gettime() + "时刻|执行" + q1.peek().ProID +
-
-                                    "号进程" + computer.cpu.PC + "号指令——");
+                                    "号进程" + computer.cpu.PC + "号指令");
+                            instr_field.setText(computer.cpu.PC + "号指令");
+                            memory_manage(q1.peek(),4);
+                            System.out.print("——");
+                            log.print("——");
+                            txt.append("——");
 
                             if (instr_flag == 0) {//若执行的是系统调用指令
 
@@ -1781,7 +1860,10 @@ public class Os extends JFrame {
     }
 
 
-    void page_in(int page){//将页面号为page的页面装入，采用LRU算法
+    void page_in(int page){//缺页中断，将页面号为page的页面装入，采用LRU算法
+        System.out.print(computer.clock.gettime()+"时刻|发生缺页中断,");
+        log.print(computer.clock.gettime()+"时刻|发生缺页中断,");
+        page_short_txt.append(computer.clock.gettime()+"时刻|发生缺页中断,");
 
         boolean flag=false;
 
@@ -1802,7 +1884,9 @@ public class Os extends JFrame {
                 memory_table[i]=true;//表示该页框已被占用
 
                 flag=true;
-
+                System.out.println("将"+page+"号页面装入"+i+"号页框");
+                log.println("将"+page+"号页面装入"+i+"号页框");
+                page_short_txt.append("将"+page+"号页面装入"+i+"号页框\n");
                 break;
 
             }
@@ -1840,6 +1924,9 @@ public class Os extends JFrame {
             }
 
             int i=page_table[add_min][0]&63;//求出要替换掉的页面所占的页框号
+            System.out.println("没有空闲页框,根据LRU算法替换掉"+add_min+"号页面,将"+page+"号界面装入"+i+"号页框");
+            log.println("没有空闲页框,根据LRU算法替换掉"+add_min+"号页面,将"+page+"号界面装入"+i+"号页框");
+            page_short_txt.append("没有空闲页框,根据LRU算法替换掉"+add_min+"号页面,将"+page+"号界面装入"+i+"号页框\n");
 
             page_table[add_min][0]=(byte)(page_table[add_min][0]&191);//将要替换的页面的驻留标志位改为0
 
@@ -2126,8 +2213,10 @@ public class Os extends JFrame {
         }
         memory_field.setText("已占用"+((double)(num*512)/1024.0)+"KB/32KB");
 
-        if(q1.size()==0)
+        if(q1.size()==0) {
             cpu_field.setText("空闲");
+            instr_field.setText("");
+        }
         else
             cpu_field.setText(q1.peek().ProID+"号进程");
 
