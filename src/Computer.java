@@ -46,7 +46,7 @@ public class Computer {//裸机类
         os.read_buton.setEnabled(false);
         os.run_buton.setEnabled(false);
 
-        os.wtite_pcb();
+        os.write_pcb();
         os.setUI_1();
 
         new Thread(){//启动时钟

@@ -111,7 +111,7 @@ public class Os extends JFrame {
     private Queue<Process>q1=new LinkedList<Process>();//运行队列（数量只能为1或0）
     private Queue<Process>q2=new LinkedList<Process>();//就绪队列
     private Queue<Process>q3=new LinkedList<Process>();//阻塞队列
-    private  Queue<Process>q4=new LinkedList<Process>();//已完成的进程
+    private Queue<Process>q4=new LinkedList<Process>();//已完成的进程
     private Queue<Process>q5=new LinkedList<Process>();//没有空闲页面导致尚未分配完页面需等待的进程
     private Queue<Process>q6=new LinkedList<Process>();//因造成死锁而被撤销的进程
     private Queue<Process>q_re=new LinkedList<Process>();//因为需要资源不足而阻塞的队列
@@ -236,7 +236,7 @@ public class Os extends JFrame {
         setVisible(true);
     }
 
-    public void setUI_1(){//图形界面一
+    public void setUI_1(){//展示进程信息
         Object[] columnNames = {"进程名称", "PID", "状态","是否需要同步","是否需要资源","需要的资源","已分配资源","内存","内容描述"};//表头
         int n=0;
         for(int i=0;i<job_num;i++){
@@ -401,7 +401,7 @@ public class Os extends JFrame {
     }
 
 
-    public void setUI_3(){
+    public void setUI_3(){//展示调度过程
         txt.setLineWrap(true); //设置自动换行
         txt.setBackground(new Color(128,118,105));
         txt.setForeground(Color.WHITE); //背景颜色
@@ -486,7 +486,7 @@ public class Os extends JFrame {
         panel4.add(scrollPane_4,BorderLayout.CENTER);
     }
 
-    void setUI_5(){
+    void setUI_5(){//展示缺页中断
         page_short_scroll=new JScrollPane(page_short_txt);
         page_short_scroll.setHorizontalScrollBarPolicy(//设置水平滚动天总是隐藏
                 JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
@@ -2045,6 +2045,7 @@ public class Os extends JFrame {
 
         System.out.print("|阻塞队列:");
 
+
         log.print("|阻塞队列:");
         txt.append("|阻塞队列:");
         for(Process process:q3){
@@ -2280,10 +2281,13 @@ public class Os extends JFrame {
 
     void show_memory(){
         final TableModel memoryTabelModel=memoryTabel.getModel();
-        for(int i=0;i<64;i++){
+        /*for(int i=0;i<64;i++){
             memoryTabelModel.setValueAt("空闲",i,1);
             memoryTabelModel.setValueAt("空闲",i,2);
-        }
+        }*/
+        boolean empty[]=new boolean[64];
+        for(int i=0;i<64;i++)
+            empty[i]=true;
 
         System.out.println(computer.clock.gettime() + "时刻|各进程占用内存情况");
         //time_field.setText(computer.clock.gettime()+"毫秒");
@@ -2311,6 +2315,7 @@ public class Os extends JFrame {
                     memory_log.print("(页框号" + i + ")");
                     memoryTabelModel.setValueAt(process.ProID+"号进程已占用",i,1);
                     memoryTabelModel.setValueAt(page+"号页面",i,2);
+                    empty[i]=false;
                 }
 
                 System.out.print("  ");
@@ -2347,6 +2352,7 @@ public class Os extends JFrame {
                     memory_log.print("(页框号" + i + ")");
                     memoryTabelModel.setValueAt(process.ProID+"号进程已占用",i,1);
                     memoryTabelModel.setValueAt(page+"号页面",i,2);
+                    empty[i]=false;
 
                 }
 
@@ -2383,6 +2389,7 @@ public class Os extends JFrame {
                     memory_log.print("(页框号" + i + ")");
                     memoryTabelModel.setValueAt(process.ProID+"号进程已占用",i,1);
                     memoryTabelModel.setValueAt(page+"号页面",i,2);
+                    empty[i]=false;
 
                 }
 
@@ -2417,6 +2424,7 @@ public class Os extends JFrame {
                     memory_log.print("(页框号" + i + ")");
                     memoryTabelModel.setValueAt(process.ProID+"号进程已占用",i,1);
                     memoryTabelModel.setValueAt(page+"号页面",i,2);
+                    empty[i]=false;
                 }
 
                 System.out.print("  ");
@@ -2434,6 +2442,13 @@ public class Os extends JFrame {
 
         System.out.println("}");
         memory_log.println("}");
+
+        for(int i=0;i<64;i++){
+            if(empty[i]==true){
+                memoryTabelModel.setValueAt("空闲",i,1);
+                memoryTabelModel.setValueAt("空闲",i,2);
+            }
+        }
 
     }
 
@@ -2501,7 +2516,7 @@ public class Os extends JFrame {
         }
     }
 
-    void wtite_pcb(){//向文件中写入JCB、PCB信息
+    void write_pcb(){//向文件中写入JCB、PCB信息
         File directory=new File(".");
         String path=null;
         int pro_num=0;//记录进程序号
